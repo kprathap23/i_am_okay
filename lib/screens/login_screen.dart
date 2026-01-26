@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import '../widgets/custom_button.dart';
 import '../widgets/custom_text_field.dart';
 import 'register_screen.dart';
@@ -33,10 +34,15 @@ class LoginScreen extends StatelessWidget {
             children: [
               const Spacer(),
               // Health Related Logo
-              const Icon(
-                Icons.health_and_safety,
-                size: 80,
-                color: Color(0xFF1F4ED8),
+              Center(
+                child: SvgPicture.asset(
+                  'assets/icons/landing_logo.svg',
+                  height: 100,
+                  colorFilter: const ColorFilter.mode(
+                    Color(0xFF1F4ED8),
+                    BlendMode.srcIn,
+                  ),
+                ),
               ),
               const SizedBox(height: 16),
               Center(
@@ -73,7 +79,9 @@ class LoginScreen extends StatelessWidget {
                   // TODO: Implement login logic
                   Navigator.push(
                     context,
-                    MaterialPageRoute(builder: (context) => const OtpScreen()),
+                    MaterialPageRoute(
+                      builder: (context) => const OtpScreen(isRegistration: false),
+                    ),
                   );
                 },
               ),

@@ -2,10 +2,15 @@ import 'package:flutter/material.dart';
 import '../widgets/custom_button.dart';
 import '../widgets/custom_text_field.dart';
 import 'emergency_contact_screen.dart';
-// import 'home_screen.dart'; // Uncomment when needed
+import 'login_screen.dart';
 
 class OtpScreen extends StatelessWidget {
-  const OtpScreen({super.key});
+  final bool isRegistration;
+
+  const OtpScreen({
+    super.key,
+    this.isRegistration = false,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -66,17 +71,23 @@ class OtpScreen extends StatelessWidget {
                 text: 'Verify',
                 onPressed: () {
                   // TODO: Implement OTP verification logic
-                  // Navigate to home screen or dashboard
-                  
-                  // Simulating first time user logic:
-                  // If first time -> EmergencyContactScreen
-                  // Else -> HomeScreen
-                  
-                  // For demonstration, we navigate to EmergencyContactScreen
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (context) => const EmergencyContactScreen()),
-                  );
+
+                  if (isRegistration) {
+                    // If from registration, navigate to Login Screen
+                    Navigator.pushAndRemoveUntil(
+                      context,
+                      MaterialPageRoute(builder: (context) => const LoginScreen()),
+                      (route) => false, // Remove all previous routes
+                    );
+                  } else {
+                    // If from login, navigate to Emergency Contacts (or Home if not first time)
+                    // Assuming for now it goes to EmergencyContactScreen as requested
+                    Navigator.pushAndRemoveUntil(
+                      context,
+                      MaterialPageRoute(builder: (context) => const EmergencyContactScreen()),
+                      (route) => false, // Remove all previous routes
+                    );
+                  }
                 },
               ),
               const SizedBox(height: 16),
