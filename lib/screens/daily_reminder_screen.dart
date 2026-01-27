@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../widgets/custom_button.dart';
+import '../widgets/loading_overlay.dart';
+import '../services/graphql_service.dart';
 import 'home_screen.dart';
 
 class DailyReminderScreen extends StatefulWidget {
@@ -10,7 +13,94 @@ class DailyReminderScreen extends StatefulWidget {
 }
 
 class _DailyReminderScreenState extends State<DailyReminderScreen> {
+  final _storage = const FlutterSecureStorage();
   TimeOfDay? _selectedTime;
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchCurrentReminder();
+  }
+
+  Future<void> _fetchCurrentReminder() async {
+    try {
+      final userId = await _storage.read(key: 'user_id');
+      if (userId != null) {
+        final user = await GraphQLService.getUser(userId);
+        if (mounted && user?.reminderSettings?.checkInTime != null) {
+          final timeParts = user!.reminderSettings!.checkInTime!.split(':');
+          if (timeParts.length == 2) {
+            setState(() {
+              _selectedTime = TimeOfDay(
+                hour: int.parse(timeParts[0]),
+                minute: int.parse(timeParts[1]),
+              );
+            });
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('Error fetching reminder settings: $e');
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _handleSetReminder() async {
+    if (_selectedTime == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please select a time first'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    LoadingOverlay.show(context);
+
+    try {
+      final userId = await _storage.read(key: 'user_id');
+      if (userId == null) {
+        throw Exception('User not found');
+      }
+
+      // Format time as HH:mm (24-hour format)
+      final formattedTime =
+          '${_selectedTime!.hour.toString().padLeft(2, '0')}:${_selectedTime!.minute.toString().padLeft(2, '0')}';
+
+      await GraphQLService.updateUser(userId, {
+        'reminderSettings': {
+          'checkInTime': formattedTime,
+          'isPaused': false,
+        },
+      });
+
+      if (mounted) {
+        LoadingOverlay.hide(context);
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (context) => const HomeScreen()),
+          (route) => false,
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        LoadingOverlay.hide(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to set reminder: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
 
   Future<void> _selectTime(BuildContext context) async {
     final TimeOfDay? picked = await showTimePicker(
@@ -58,11 +148,13 @@ class _DailyReminderScreenState extends State<DailyReminderScreen> {
         ),
       ),
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(24.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
+        child: _isLoading
+            ? const Center(child: CircularProgressIndicator())
+            : Padding(
+                padding: const EdgeInsets.all(24.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
               const Text(
                 'Set a time for your daily safety check-in.',
                 style: TextStyle(
@@ -107,28 +199,12 @@ class _DailyReminderScreenState extends State<DailyReminderScreen> {
               const Spacer(),
               CustomButton(
                 text: 'Set Reminder',
-                onPressed: () {
-                  if (_selectedTime != null) {
-                    // TODO: Save reminder time
-                    Navigator.pushAndRemoveUntil(
-                      context,
-                      MaterialPageRoute(builder: (context) => const HomeScreen()),
-                      (route) => false,
-                    );
-                  } else {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Please select a time first'),
-                        backgroundColor: Colors.red,
-                      ),
-                    );
-                  }
-                },
+                onPressed: _handleSetReminder,
               ),
-              const SizedBox(height: 24),
-            ],
-          ),
-        ),
+                    const SizedBox(height: 24),
+                  ],
+                ),
+            ),
       ),
     );
   }

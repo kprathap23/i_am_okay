@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import '../widgets/custom_button.dart';
 import '../widgets/custom_text_field.dart';
 import '../widgets/custom_dropdown_field.dart';
+import '../widgets/loading_overlay.dart';
+import '../services/graphql_service.dart';
+import '../utils/phone_input_formatter.dart';
 import 'login_screen.dart';
 import 'otp_screen.dart';
 
@@ -76,6 +79,79 @@ class _RegisterScreenState extends State<RegisterScreen> {
     }
   }
 
+  Future<void> _handleRegister() async {
+    // 1. Validation
+    if (_firstNameController.text.trim().isEmpty ||
+        _lastNameController.text.trim().isEmpty ||
+        _mobileController.text.trim().isEmpty ||
+        _addressLine1Controller.text.trim().isEmpty ||
+        _cityController.text.trim().isEmpty ||
+        _zipCodeController.text.trim().isEmpty ||
+        _selectedState == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please fill all required fields'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    LoadingOverlay.show(context);
+
+    try {
+      final rawMobile = _mobileController.text.trim();
+      final mobile = rawMobile.replaceAll(RegExp(r'\D'), '');
+
+      // 2. Create User
+      final input = {
+        'mobileNumber': mobile,
+        'email': _emailController.text.trim(),
+        'name': {
+          'firstName': _firstNameController.text.trim(),
+          'lastName': _lastNameController.text.trim(),
+          'alias': _aliasNameController.text.trim(),
+        },
+        'address': {
+          'address1': _addressLine1Controller.text.trim(),
+          'address2': _addressLine2Controller.text.trim(),
+          'city': _cityController.text.trim(),
+          'zipCode': _zipCodeController.text.trim(),
+          'state': _selectedState,
+        }
+      };
+
+      await GraphQLService.createUser(input);
+
+      // 3. Request OTP
+      await GraphQLService.requestOtp(mobile);
+
+      if (mounted) {
+        LoadingOverlay.hide(context);
+        // 4. Navigate
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => OtpScreen(
+              isRegistration: true,
+              mobileNumber: mobile,
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        LoadingOverlay.hide(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Registration failed: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -127,6 +203,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 hint: 'Enter your mobile number',
                 keyboardType: TextInputType.phone,
                 controller: _mobileController,
+                inputFormatters: [PhoneInputFormatter()],
               ),
               const SizedBox(height: 24.0),
               CustomTextField(
@@ -194,15 +271,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
               const SizedBox(height: 40.0),
               CustomButton(
                 text: 'Register',
-                onPressed: () {
-                  // TODO: Implement registration logic
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const OtpScreen(isRegistration: true),
-                    ),
-                  );
-                },
+                onPressed: _handleRegister,
               ),
               const SizedBox(height: 24.0),
             ],

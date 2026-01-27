@@ -1,17 +1,108 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:graphql_flutter/graphql_flutter.dart';
 import '../widgets/custom_button.dart';
 import '../widgets/custom_text_field.dart';
+import '../widgets/loading_overlay.dart';
+import '../services/graphql_service.dart';
+import '../utils/phone_input_formatter.dart';
 import 'register_screen.dart';
 import 'otp_screen.dart';
 
-class LoginScreen extends StatelessWidget {
+class LoginScreen extends StatefulWidget {
   final bool fromRegistration;
 
   const LoginScreen({
     super.key,
     this.fromRegistration = false,
   });
+
+  @override
+  State<LoginScreen> createState() => _LoginScreenState();
+}
+
+class _LoginScreenState extends State<LoginScreen> {
+  final _mobileController = TextEditingController();
+
+  Future<void> _handleLogin(BuildContext context) async {
+    final rawMobile = _mobileController.text;
+    final mobile = rawMobile.replaceAll(RegExp(r'\D'), '');
+    if (mobile.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter mobile number')),
+      );
+      return;
+    }
+
+    LoadingOverlay.show(context);
+
+    try {
+      // ignore: unused_local_variable
+      final result = await GraphQLService.requestOtp(mobile);
+
+      if (mounted) {
+        LoadingOverlay.hide(context);
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => OtpScreen(
+              isRegistration: false,
+              mobileNumber: mobile,
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        LoadingOverlay.hide(context);
+
+        final errorMessage = e.toString().toLowerCase();
+        if (errorMessage.contains('not found')) {
+          _showAccountNotFoundDialog(context);
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('An error occurred: $e'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    }
+  }
+
+  void _showAccountNotFoundDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Account Not Found'),
+        content: const Text(
+            'We could not find an account with this mobile number. Would you like to create a new account?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context); // Close dialog
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const RegisterScreen()),
+              );
+            },
+            child: const Text('Create Account'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  void dispose() {
+    _mobileController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -47,7 +138,7 @@ class LoginScreen extends StatelessWidget {
               const SizedBox(height: 16),
               Center(
                 child: Text(
-                  fromRegistration ? 'Welcome' : 'Welcome Back',
+                  widget.fromRegistration ? 'Welcome' : 'Welcome Back',
                   style: const TextStyle(
                     fontSize: 28.0, // Main heading
                     fontWeight: FontWeight.w600,
@@ -67,23 +158,17 @@ class LoginScreen extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 48),
-              const CustomTextField(
+              CustomTextField(
                 label: 'Mobile Number',
                 hint: 'Enter your mobile number',
                 keyboardType: TextInputType.phone,
+                controller: _mobileController,
+                inputFormatters: [PhoneInputFormatter()],
               ),
               const SizedBox(height: 32),
               CustomButton(
                 text: 'Sign In',
-                onPressed: () {
-                  // TODO: Implement login logic
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const OtpScreen(isRegistration: false),
-                    ),
-                  );
-                },
+                onPressed: () => _handleLogin(context),
               ),
               const SizedBox(height: 16),
               Row(

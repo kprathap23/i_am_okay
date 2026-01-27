@@ -1,16 +1,175 @@
 import 'package:flutter/material.dart';
+import 'dart:async';
+import 'package:graphql_flutter/graphql_flutter.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../widgets/custom_button.dart';
 import '../widgets/custom_text_field.dart';
+import '../widgets/loading_overlay.dart';
+import '../services/graphql_service.dart';
 import 'emergency_contact_screen.dart';
+import 'daily_reminder_screen.dart';
+import 'home_screen.dart';
 import 'login_screen.dart';
 
-class OtpScreen extends StatelessWidget {
+class OtpScreen extends StatefulWidget {
   final bool isRegistration;
+  final String? mobileNumber;
 
   const OtpScreen({
     super.key,
     this.isRegistration = false,
+    this.mobileNumber,
   });
+
+  @override
+  State<OtpScreen> createState() => _OtpScreenState();
+}
+
+class _OtpScreenState extends State<OtpScreen> {
+  final _otpController = TextEditingController();
+  final _storage = const FlutterSecureStorage();
+  Timer? _timer;
+  int _start = 60;
+  bool _canResend = false;
+
+  @override
+  void initState() {
+    super.initState();
+    startTimer();
+  }
+
+  void startTimer() {
+    setState(() {
+      _canResend = false;
+      _start = 60;
+    });
+    _timer = Timer.periodic(
+      const Duration(seconds: 1),
+      (Timer timer) {
+        if (_start == 0) {
+          setState(() {
+            timer.cancel();
+            _canResend = true;
+          });
+        } else {
+          setState(() {
+            _start--;
+          });
+        }
+      },
+    );
+  }
+
+  Future<void> _handleResendOtp() async {
+    if (!_canResend || widget.mobileNumber == null) return;
+
+    LoadingOverlay.show(context);
+    try {
+      await GraphQLService.requestOtp(widget.mobileNumber!);
+      
+      if (mounted) {
+        LoadingOverlay.hide(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('OTP sent successfully')),
+        );
+        startTimer();
+      }
+    } catch (e) {
+      if (mounted) {
+        LoadingOverlay.hide(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to resend OTP: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _handleVerify(BuildContext context) async {
+    final otp = _otpController.text;
+    if (otp.length != 6) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter a valid 6-digit OTP')),
+      );
+      return;
+    }
+
+    if (widget.mobileNumber == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Mobile number missing')),
+      );
+      return;
+    }
+
+    LoadingOverlay.show(context);
+
+    try {
+      final authPayload = await GraphQLService.verifyOtp(
+        widget.mobileNumber!,
+        otp,
+      );
+
+      final token = authPayload.token;
+      final user = authPayload.user;
+
+      await _storage.write(key: 'auth_token', value: token);
+      if (user != null) {
+        await _storage.write(key: 'user_id', value: user.id);
+      }
+
+      if (mounted) {
+        LoadingOverlay.hide(context);
+
+        // Check for missing data in sequence
+        bool hasEmergencyContacts = user?.emergencyContacts.isNotEmpty ?? false;
+        bool hasReminderSettings = user?.reminderSettings != null;
+
+        if (!hasEmergencyContacts) {
+          // Navigate to Emergency Contact Screen
+          Navigator.pushAndRemoveUntil(
+            context,
+            MaterialPageRoute(
+                builder: (context) => const EmergencyContactScreen()),
+            (route) => false,
+          );
+        } else if (!hasReminderSettings) {
+          // Navigate to Daily Reminder Screen
+          Navigator.pushAndRemoveUntil(
+            context,
+            MaterialPageRoute(
+                builder: (context) => const DailyReminderScreen()),
+            (route) => false,
+          );
+        } else {
+          // All good, go to Home
+          Navigator.pushAndRemoveUntil(
+            context,
+            MaterialPageRoute(builder: (context) => const HomeScreen()),
+            (route) => false,
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        LoadingOverlay.hide(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('An error occurred: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    _otpController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -61,47 +220,27 @@ class OtpScreen extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 48),
-              const CustomTextField(
+              CustomTextField(
                 label: 'OTP Code',
                 hint: 'Enter the 6-digit code',
                 keyboardType: TextInputType.number,
+                controller: _otpController,
               ),
               const SizedBox(height: 32),
               CustomButton(
                 text: 'Verify',
-                onPressed: () {
-                  // TODO: Implement OTP verification logic
-
-                  if (isRegistration) {
-                    // If from registration, navigate to Login Screen
-                    Navigator.pushAndRemoveUntil(
-                      context,
-                      MaterialPageRoute(builder: (context) => const LoginScreen()),
-                      (route) => false, // Remove all previous routes
-                    );
-                  } else {
-                    // If from login, navigate to Emergency Contacts (or Home if not first time)
-                    // Assuming for now it goes to EmergencyContactScreen as requested
-                    Navigator.pushAndRemoveUntil(
-                      context,
-                      MaterialPageRoute(builder: (context) => const EmergencyContactScreen()),
-                      (route) => false, // Remove all previous routes
-                    );
-                  }
-                },
+                onPressed: () => _handleVerify(context),
               ),
               const SizedBox(height: 16),
               Center(
                 child: GestureDetector(
-                  onTap: () {
-                    // TODO: Resend OTP logic
-                  },
-                  child: const Text(
-                    'Resend Code',
+                  onTap: _canResend ? _handleResendOtp : null,
+                  child: Text(
+                    _canResend ? 'Resend Code' : 'Resend Code in ${_start}s',
                     style: TextStyle(
                       fontSize: 16.0,
                       fontWeight: FontWeight.w600,
-                      color: Color(0xFF1F4ED8),
+                      color: _canResend ? const Color(0xFF1F4ED8) : Colors.grey,
                     ),
                   ),
                 ),

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'package:flutter/services.dart';
+
 class CustomTextField extends StatelessWidget {
   final String label;
   final String? hint;
@@ -7,6 +9,7 @@ class CustomTextField extends StatelessWidget {
   final TextInputType keyboardType;
   final int maxLines;
   final bool isOptional;
+  final List<TextInputFormatter>? inputFormatters;
 
   const CustomTextField({
     super.key,
@@ -16,6 +19,7 @@ class CustomTextField extends StatelessWidget {
     this.keyboardType = TextInputType.text,
     this.maxLines = 1,
     this.isOptional = false,
+    this.inputFormatters,
   });
 
   @override
@@ -41,6 +45,15 @@ class CustomTextField extends StatelessWidget {
                   fontWeight: FontWeight.w400,
                   color: Color(0xFF333333), // Secondary Text
                 ),
+              )
+            else
+              const Text(
+                ' *',
+                style: TextStyle(
+                  fontSize: 18.0,
+                  fontWeight: FontWeight.w500,
+                  color: Colors.red,
+                ),
               ),
           ],
         ),
@@ -49,6 +62,7 @@ class CustomTextField extends StatelessWidget {
           controller: controller,
           keyboardType: keyboardType,
           maxLines: maxLines,
+          inputFormatters: inputFormatters,
           style: const TextStyle(
             fontSize: 18.0, // Body text size
             fontWeight: FontWeight.w400, // Regular (400)
