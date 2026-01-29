@@ -93,8 +93,8 @@ class _DailyReminderScreenState extends State<DailyReminderScreen> {
       if (mounted) {
         LoadingOverlay.hide(context);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to set reminder: $e'),
+          const SnackBar(
+            content: Text('Something went wrong. Please try again.'),
             backgroundColor: Colors.red,
           ),
         );

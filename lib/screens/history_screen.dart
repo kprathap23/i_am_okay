@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../models/checkin_model.dart';
 import '../services/graphql_service.dart';
 
@@ -35,7 +36,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
     } catch (e) {
       if (mounted) {
         setState(() {
-          _errorMessage = e.toString();
+          _errorMessage = 'Something went wrong. Please try again.';
           _isLoading = false;
         });
       }
@@ -130,72 +131,181 @@ class _HistoryScreenState extends State<HistoryScreen> {
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(12),
             ),
-            child: Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Row(
-                children: [
-                  Container(
-                    width: 50,
-                    height: 50,
-                    decoration: BoxDecoration(
-                      color: _getStatusColor(checkIn.status).withOpacity(0.1),
-                      shape: BoxShape.circle,
+            clipBehavior: Clip.antiAlias,
+            child: InkWell(
+              onTap: () => _showCheckInDetails(context, checkIn),
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 50,
+                      height: 50,
+                      decoration: BoxDecoration(
+                        color: _getStatusColor(checkIn.status).withOpacity(0.1),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(
+                        _getStatusIcon(checkIn.status),
+                        color: _getStatusColor(checkIn.status),
+                        size: 28,
+                      ),
                     ),
-                    child: Icon(
-                      _getStatusIcon(checkIn.status),
-                      color: _getStatusColor(checkIn.status),
-                      size: 28,
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          checkIn.status,
-                          style: const TextStyle(
-                            fontSize: 16.0,
-                            fontWeight: FontWeight.w600,
-                            color: Color(0xFF000000),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            checkIn.status,
+                            style: const TextStyle(
+                              fontSize: 16.0,
+                              fontWeight: FontWeight.w600,
+                              color: Color(0xFF000000),
+                            ),
                           ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          '$formattedDate at $formattedTime',
-                          style: const TextStyle(
-                            fontSize: 14.0,
-                            color: Color(0xFF666666),
-                          ),
-                        ),
-                        if (checkIn.location != null) ...[
                           const SizedBox(height: 4),
-                          Row(
-                            children: [
-                              const Icon(
-                                Icons.location_on,
-                                size: 14,
-                                color: Color(0xFF666666),
-                              ),
-                              const SizedBox(width: 4),
-                              const Text(
-                                'Location available',
-                                style: TextStyle(
-                                  fontSize: 12.0,
+                          Text(
+                            '$formattedDate at $formattedTime',
+                            style: const TextStyle(
+                              fontSize: 14.0,
+                              color: Color(0xFF666666),
+                            ),
+                          ),
+                          if (checkIn.location != null) ...[
+                            const SizedBox(height: 4),
+                            Row(
+                              children: [
+                                const Icon(
+                                  Icons.location_on,
+                                  size: 14,
                                   color: Color(0xFF666666),
                                 ),
-                              ),
-                            ],
-                          ),
+                                const SizedBox(width: 4),
+                                const Text(
+                                  'Location available',
+                                  style: TextStyle(
+                                    fontSize: 12.0,
+                                    color: Color(0xFF666666),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
                         ],
-                      ],
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           );
         },
+      ),
+    );
+  }
+
+  Future<void> _showCheckInDetails(BuildContext context, CheckIn checkIn) async {
+    final date = checkIn.timestamp ?? checkIn.createdAt ?? DateTime.now();
+    final formattedDate = DateFormat('MMM d, yyyy').format(date);
+    final formattedTime = DateFormat('h:mm a').format(date);
+
+    double? lat;
+    double? lng;
+
+    if (checkIn.location != null) {
+      if (checkIn.location!.containsKey('lat')) {
+        lat = double.tryParse(checkIn.location!['lat'].toString());
+      }
+      if (checkIn.location!.containsKey('lng')) {
+        lng = double.tryParse(checkIn.location!['lng'].toString());
+      }
+    }
+
+    // Check if location is valid (not 0,0 and not null)
+    final bool hasValidLocation = lat != null && lng != null && (lat != 0 || lng != 0);
+
+    if (!mounted) return;
+
+    await showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Check-in Details'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Status: ${checkIn.status}',
+              style: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text('Date: $formattedDate'),
+            Text('Time: $formattedTime'),
+            const SizedBox(height: 16),
+            if (hasValidLocation)
+              const Row(
+                children: [
+                  Icon(Icons.location_on, size: 16, color: Color(0xFF1F4ED8)),
+                  SizedBox(width: 4),
+                  Text(
+                    'Location available',
+                    style: TextStyle(
+                      color: Color(0xFF1F4ED8),
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              )
+            else
+              const Text(
+                'Location not available',
+                style: TextStyle(
+                  color: Colors.grey,
+                  fontStyle: FontStyle.italic,
+                ),
+              ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Close'),
+            style: TextButton.styleFrom(
+              foregroundColor: const Color(0xFF333333),
+            ),
+          ),
+          if (hasValidLocation)
+            ElevatedButton.icon(
+              onPressed: () async {
+                final Uri url = Uri.parse(
+                    'https://www.google.com/maps/search/?api=1&query=$lat,$lng');
+                try {
+                  if (await canLaunchUrl(url)) {
+                    await launchUrl(url, mode: LaunchMode.externalApplication);
+                  } else {
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                            content: Text('Could not open maps application')),
+                      );
+                    }
+                  }
+                } catch (e) {
+                  debugPrint('Error launching map: $e');
+                }
+              },
+              icon: const Icon(Icons.map, size: 18),
+              label: const Text('Navigate'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF1F4ED8),
+                foregroundColor: Colors.white,
+              ),
+            ),
+        ],
       ),
     );
   }

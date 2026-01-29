@@ -61,8 +61,8 @@ class _LoginScreenState extends State<LoginScreen> {
           _showAccountNotFoundDialog(context);
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('An error occurred: $e'),
+            const SnackBar(
+              content: Text('Something went wrong. Please try again.'),
               backgroundColor: Colors.red,
             ),
           );
@@ -164,6 +164,8 @@ class _LoginScreenState extends State<LoginScreen> {
                 keyboardType: TextInputType.phone,
                 controller: _mobileController,
                 inputFormatters: [PhoneInputFormatter()],
+                textInputAction: TextInputAction.done,
+                onSubmitted: (_) => _handleLogin(context),
               ),
               const SizedBox(height: 32),
               CustomButton(

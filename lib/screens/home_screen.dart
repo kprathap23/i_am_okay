@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:geolocator/geolocator.dart';
 import '../services/graphql_service.dart';
 import '../widgets/loading_overlay.dart';
 import '../models/user_model.dart';
@@ -213,19 +214,47 @@ class _HomeContentState extends State<HomeContent>
         throw Exception("User ID not found");
       }
 
-      await GraphQLService.createCheckIn({
+      // Check permissions and get location
+      Map<String, double>? locationData;
+      try {
+        bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+        if (serviceEnabled) {
+          LocationPermission permission = await Geolocator.checkPermission();
+          if (permission == LocationPermission.denied) {
+            permission = await Geolocator.requestPermission();
+          }
+
+          if (permission == LocationPermission.whileInUse ||
+              permission == LocationPermission.always) {
+            final position = await Geolocator.getCurrentPosition(
+              desiredAccuracy: LocationAccuracy.high,
+            );
+            locationData = {
+              'lat': position.latitude,
+              'lng': position.longitude,
+            };
+          }
+        }
+      } catch (e) {
+        debugPrint('Location error: $e');
+        // Continue without location
+      }
+
+      final Map<String, dynamic> checkInPayload = {
         'userId': userId,
         'status': 'OK',
         'timestamp': DateTime.now().toUtc().toIso8601String(),
-        'location': {
-          'lat': 0.0,
-          'lng': 0.0,
-        },
         'metadata': {
           'source': 'app',
           'deviceInfo': 'mobile',
         }
-      });
+      };
+
+      if (locationData != null) {
+        checkInPayload['location'] = locationData;
+      }
+
+      await GraphQLService.createCheckIn(checkInPayload);
 
       if (mounted) {
         LoadingOverlay.hide(context);
@@ -301,8 +330,8 @@ class _HomeContentState extends State<HomeContent>
       if (mounted) {
         LoadingOverlay.hide(context);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to update reminder status: $e'),
+          const SnackBar(
+            content: Text('Something went wrong. Please try again.'),
             backgroundColor: Colors.red,
           ),
         );
@@ -474,7 +503,7 @@ class _HomeContentState extends State<HomeContent>
                           ? null
                           : Border.all(
                               color: const Color(0xFF1F4ED8),
-                              width: 4.0,
+                              width: 1.0,
                             ),
                       boxShadow: [
                         BoxShadow(

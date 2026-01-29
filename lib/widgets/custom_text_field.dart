@@ -10,6 +10,9 @@ class CustomTextField extends StatelessWidget {
   final int maxLines;
   final bool isOptional;
   final List<TextInputFormatter>? inputFormatters;
+  final ValueChanged<String>? onSubmitted;
+  final TextInputAction? textInputAction;
+  final FocusNode? focusNode;
 
   const CustomTextField({
     super.key,
@@ -20,6 +23,9 @@ class CustomTextField extends StatelessWidget {
     this.maxLines = 1,
     this.isOptional = false,
     this.inputFormatters,
+    this.onSubmitted,
+    this.textInputAction,
+    this.focusNode,
   });
 
   @override
@@ -60,9 +66,12 @@ class CustomTextField extends StatelessWidget {
         const SizedBox(height: 8.0),
         TextFormField(
           controller: controller,
+          focusNode: focusNode,
           keyboardType: keyboardType,
           maxLines: maxLines,
           inputFormatters: inputFormatters,
+          onFieldSubmitted: onSubmitted,
+          textInputAction: textInputAction,
           style: const TextStyle(
             fontSize: 18.0, // Body text size
             fontWeight: FontWeight.w400, // Regular (400)

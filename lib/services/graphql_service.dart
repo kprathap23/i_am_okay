@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:graphql_flutter/graphql_flutter.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'dart:io';
+import '../config.dart';
 import '../gql/mutations/auth_mutations.dart';
 import '../gql/queries/user_queries.dart';
 import '../gql/queries/checkin_queries.dart';
@@ -14,7 +15,7 @@ import '../models/checkin_model.dart';
 class GraphQLService {
   static final HttpLink _httpLink = HttpLink(
     Platform.isAndroid 
-        ? 'http://10.0.2.2:5200/graphql' 
+        ? AppConfig.apiUrl 
         : 'http://localhost:5200/graphql',
   );
 

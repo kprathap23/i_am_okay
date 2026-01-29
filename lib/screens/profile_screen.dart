@@ -47,7 +47,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     } catch (e) {
       if (mounted) {
         setState(() {
-          _errorMessage = e.toString();
+          _errorMessage = 'Something went wrong. Please try again.';
           _isLoading = false;
         });
       }

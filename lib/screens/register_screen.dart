@@ -26,6 +26,16 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _zipCodeController = TextEditingController();
   final _emailController = TextEditingController();
 
+  final _firstNameFocus = FocusNode();
+  final _lastNameFocus = FocusNode();
+  final _aliasNameFocus = FocusNode();
+  final _mobileFocus = FocusNode();
+  final _addressLine1Focus = FocusNode();
+  final _addressLine2Focus = FocusNode();
+  final _cityFocus = FocusNode();
+  final _zipCodeFocus = FocusNode();
+  final _emailFocus = FocusNode();
+
   String? _selectedState;
 
   // Mock data for Zip to State mapping
@@ -63,6 +73,15 @@ class _RegisterScreenState extends State<RegisterScreen> {
     _cityController.dispose();
     _zipCodeController.dispose();
     _emailController.dispose();
+    _firstNameFocus.dispose();
+    _lastNameFocus.dispose();
+    _aliasNameFocus.dispose();
+    _mobileFocus.dispose();
+    _addressLine1Focus.dispose();
+    _addressLine2Focus.dispose();
+    _cityFocus.dispose();
+    _zipCodeFocus.dispose();
+    _emailFocus.dispose();
     super.dispose();
   }
 
@@ -143,8 +162,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
       if (mounted) {
         LoadingOverlay.hide(context);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Registration failed: $e'),
+          const SnackBar(
+            content: Text('Something went wrong. Please try again.'),
             backgroundColor: Colors.red,
           ),
         );
@@ -183,12 +202,18 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 label: 'First Name',
                 hint: 'Enter your first name',
                 controller: _firstNameController,
+                focusNode: _firstNameFocus,
+                textInputAction: TextInputAction.next,
+                onSubmitted: (_) => FocusScope.of(context).requestFocus(_lastNameFocus),
               ),
               const SizedBox(height: 24.0),
               CustomTextField(
                 label: 'Last Name',
                 hint: 'Enter your last name',
                 controller: _lastNameController,
+                focusNode: _lastNameFocus,
+                textInputAction: TextInputAction.next,
+                onSubmitted: (_) => FocusScope.of(context).requestFocus(_aliasNameFocus),
               ),
               const SizedBox(height: 24.0),
               CustomTextField(
@@ -196,6 +221,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 hint: 'Enter your alias name',
                 controller: _aliasNameController,
                 isOptional: true,
+                focusNode: _aliasNameFocus,
+                textInputAction: TextInputAction.next,
+                onSubmitted: (_) => FocusScope.of(context).requestFocus(_mobileFocus),
               ),
               const SizedBox(height: 24.0),
               CustomTextField(
@@ -204,6 +232,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 keyboardType: TextInputType.phone,
                 controller: _mobileController,
                 inputFormatters: [PhoneInputFormatter()],
+                focusNode: _mobileFocus,
+                textInputAction: TextInputAction.next,
+                onSubmitted: (_) => FocusScope.of(context).requestFocus(_addressLine1Focus),
               ),
               const SizedBox(height: 24.0),
               CustomTextField(
@@ -211,6 +242,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 hint: 'Street address, P.O. box, etc.',
                 controller: _addressLine1Controller,
                 keyboardType: TextInputType.streetAddress,
+                focusNode: _addressLine1Focus,
+                textInputAction: TextInputAction.next,
+                onSubmitted: (_) => FocusScope.of(context).requestFocus(_addressLine2Focus),
               ),
               const SizedBox(height: 24.0),
               CustomTextField(
@@ -218,12 +252,18 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 hint: 'Apartment, suite, unit, etc.',
                 controller: _addressLine2Controller,
                 isOptional: true,
+                focusNode: _addressLine2Focus,
+                textInputAction: TextInputAction.next,
+                onSubmitted: (_) => FocusScope.of(context).requestFocus(_cityFocus),
               ),
               const SizedBox(height: 24.0),
               CustomTextField(
                 label: 'City',
                 hint: 'Enter your city',
                 controller: _cityController,
+                focusNode: _cityFocus,
+                textInputAction: TextInputAction.next,
+                onSubmitted: (_) => FocusScope.of(context).requestFocus(_zipCodeFocus),
               ),
               const SizedBox(height: 24.0),
               Row(
@@ -236,6 +276,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       hint: 'Zip Code',
                       keyboardType: TextInputType.number,
                       controller: _zipCodeController,
+                      focusNode: _zipCodeFocus,
+                      textInputAction: TextInputAction.next,
+                      onSubmitted: (_) => FocusScope.of(context).requestFocus(_emailFocus),
                     ),
                   ),
                   const SizedBox(width: 16.0),
@@ -267,6 +310,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 keyboardType: TextInputType.emailAddress,
                 controller: _emailController,
                 isOptional: true,
+                focusNode: _emailFocus,
+                textInputAction: TextInputAction.done,
+                onSubmitted: (_) => _handleRegister(),
               ),
               const SizedBox(height: 40.0),
               CustomButton(

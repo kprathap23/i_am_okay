@@ -26,11 +26,28 @@ class _EmergencyContactScreenState extends State<EmergencyContactScreen> {
   bool _isFormVisible = true;
   final List<Map<String, dynamic>> _contacts = [];
   final _nameController = TextEditingController();
+  final _phoneController = TextEditingController();
+  final _emailController = TextEditingController();
+
+  final _nameFocus = FocusNode();
+  final _phoneFocus = FocusNode();
+  final _emailFocus = FocusNode();
 
   @override
   void initState() {
     super.initState();
     _fetchContacts();
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _phoneController.dispose();
+    _emailController.dispose();
+    _nameFocus.dispose();
+    _phoneFocus.dispose();
+    _emailFocus.dispose();
+    super.dispose();
   }
 
   Future<void> _fetchContacts() async {
@@ -60,8 +77,6 @@ class _EmergencyContactScreenState extends State<EmergencyContactScreen> {
       }
     }
   }
-  final _phoneController = TextEditingController();
-  final _emailController = TextEditingController();
 
   String? _selectedRelation;
 
@@ -202,8 +217,8 @@ class _EmergencyContactScreenState extends State<EmergencyContactScreen> {
       if (mounted) {
         LoadingOverlay.hide(context);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to update contacts: $e'),
+          const SnackBar(
+            content: Text('Something went wrong. Please try again.'),
             backgroundColor: Colors.red,
           ),
         );
@@ -317,6 +332,9 @@ class _EmergencyContactScreenState extends State<EmergencyContactScreen> {
                     label: 'Full Name',
                     hint: 'Enter full name',
                     controller: _nameController,
+                    focusNode: _nameFocus,
+                    textInputAction: TextInputAction.next,
+                    onSubmitted: (_) => FocusScope.of(context).requestFocus(_phoneFocus),
                   ),
                   const SizedBox(height: 16),
                   CustomTextField(
@@ -325,6 +343,9 @@ class _EmergencyContactScreenState extends State<EmergencyContactScreen> {
                     keyboardType: TextInputType.phone,
                     controller: _phoneController,
                     inputFormatters: [PhoneInputFormatter()],
+                    focusNode: _phoneFocus,
+                    textInputAction: TextInputAction.next,
+                    onSubmitted: (_) => FocusScope.of(context).requestFocus(_emailFocus),
                   ),
                   const SizedBox(height: 16),
                   CustomTextField(
@@ -333,6 +354,9 @@ class _EmergencyContactScreenState extends State<EmergencyContactScreen> {
                     keyboardType: TextInputType.emailAddress,
                     isOptional: true,
                     controller: _emailController,
+                    focusNode: _emailFocus,
+                    textInputAction: TextInputAction.done,
+                    onSubmitted: (_) => _addContact(),
                   ),
                   const SizedBox(height: 24),
                   CustomButton(
