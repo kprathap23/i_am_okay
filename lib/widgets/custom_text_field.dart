@@ -13,6 +13,8 @@ class CustomTextField extends StatelessWidget {
   final ValueChanged<String>? onSubmitted;
   final TextInputAction? textInputAction;
   final FocusNode? focusNode;
+  final String? Function(String?)? validator;
+  final AutovalidateMode autovalidateMode;
 
   const CustomTextField({
     super.key,
@@ -26,6 +28,8 @@ class CustomTextField extends StatelessWidget {
     this.onSubmitted,
     this.textInputAction,
     this.focusNode,
+    this.validator,
+    this.autovalidateMode = AutovalidateMode.onUserInteraction,
   });
 
   @override
@@ -72,6 +76,8 @@ class CustomTextField extends StatelessWidget {
           inputFormatters: inputFormatters,
           onFieldSubmitted: onSubmitted,
           textInputAction: textInputAction,
+          validator: validator,
+          autovalidateMode: autovalidateMode,
           style: const TextStyle(
             fontSize: 18.0, // Body text size
             fontWeight: FontWeight.w400, // Regular (400)

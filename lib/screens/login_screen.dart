@@ -11,10 +11,12 @@ import 'otp_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   final bool fromRegistration;
+  final String? initialMobileNumber;
 
   const LoginScreen({
     super.key,
     this.fromRegistration = false,
+    this.initialMobileNumber,
   });
 
   @override
@@ -23,16 +25,23 @@ class LoginScreen extends StatefulWidget {
 
 class _LoginScreenState extends State<LoginScreen> {
   final _mobileController = TextEditingController();
+  final _formKey = GlobalKey<FormState>();
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.initialMobileNumber != null) {
+      _mobileController.text = widget.initialMobileNumber!;
+    }
+  }
 
   Future<void> _handleLogin(BuildContext context) async {
-    final rawMobile = _mobileController.text;
-    final mobile = rawMobile.replaceAll(RegExp(r'\D'), '');
-    if (mobile.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter mobile number')),
-      );
+    if (!_formKey.currentState!.validate()) {
       return;
     }
+
+    final rawMobile = _mobileController.text;
+    final mobile = rawMobile.replaceAll(RegExp(r'\D'), '');
 
     LoadingOverlay.show(context);
 
@@ -119,12 +128,14 @@ class _LoginScreenState extends State<LoginScreen> {
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 24.0),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              const Spacer(),
-              // Health Related Logo
+          child: Form(
+            key: _formKey,
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const Spacer(),
+                // Health Related Logo
               Center(
                 child: SvgPicture.asset(
                   'assets/icons/landing_logo.svg',
@@ -166,6 +177,16 @@ class _LoginScreenState extends State<LoginScreen> {
                 inputFormatters: [PhoneInputFormatter()],
                 textInputAction: TextInputAction.done,
                 onSubmitted: (_) => _handleLogin(context),
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'Please enter mobile number';
+                  }
+                  final digits = value.replaceAll(RegExp(r'\D'), '');
+                  if (digits.length != 10) {
+                    return 'Please enter a valid 10-digit number';
+                  }
+                  return null;
+                },
               ),
               const SizedBox(height: 32),
               CustomButton(
@@ -203,6 +224,7 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
               const Spacer(),
             ],
+            ),
           ),
         ),
       ),

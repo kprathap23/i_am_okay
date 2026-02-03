@@ -172,7 +172,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                               color: Color(0xFF666666),
                             ),
                           ),
-                          if (checkIn.location != null) ...[
+                          if (_hasValidLocation(checkIn.location)) ...[
                             const SizedBox(height: 4),
                             Row(
                               children: [
@@ -205,6 +205,17 @@ class _HistoryScreenState extends State<HistoryScreen> {
     );
   }
 
+  bool _hasValidLocation(Map<String, dynamic>? location) {
+    if (location == null) return false;
+    try {
+      final lat = double.tryParse(location['lat'].toString());
+      final lng = double.tryParse(location['lng'].toString());
+      return lat != null && lng != null && (lat != 0 || lng != 0);
+    } catch (e) {
+      return false;
+    }
+  }
+
   Future<void> _showCheckInDetails(BuildContext context, CheckIn checkIn) async {
     final date = checkIn.timestamp ?? checkIn.createdAt ?? DateTime.now();
     final formattedDate = DateFormat('MMM d, yyyy').format(date);
@@ -223,7 +234,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
     }
 
     // Check if location is valid (not 0,0 and not null)
-    final bool hasValidLocation = lat != null && lng != null && (lat != 0 || lng != 0);
+    final bool hasValidLocation = _hasValidLocation(checkIn.location);
 
     if (!mounted) return;
 
@@ -281,11 +292,15 @@ class _HistoryScreenState extends State<HistoryScreen> {
           if (hasValidLocation)
             ElevatedButton.icon(
               onPressed: () async {
-                final Uri url = Uri.parse(
+                final Uri navigationUrl =
+                    Uri.parse('google.navigation:q=$lat,$lng');
+                final Uri webUrl = Uri.parse(
                     'https://www.google.com/maps/search/?api=1&query=$lat,$lng');
                 try {
-                  if (await canLaunchUrl(url)) {
-                    await launchUrl(url, mode: LaunchMode.externalApplication);
+                  if (await canLaunchUrl(navigationUrl)) {
+                    await launchUrl(navigationUrl);
+                  } else if (await canLaunchUrl(webUrl)) {
+                    await launchUrl(webUrl, mode: LaunchMode.externalApplication);
                   } else {
                     if (context.mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(

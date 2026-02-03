@@ -9,6 +9,12 @@ const String getUsersQuery = """
   $userFragment
 """;
 
+const String checkUserExistsQuery = """
+  query CheckUserExists(\$mobileNumber: String, \$email: String) {
+    checkUserExists(mobileNumber: \$mobileNumber, email: \$email)
+  }
+""";
+
 const String getUserQuery = """
   query GetUser(\$id: String!) {
     user(id: \$id) {

@@ -55,12 +55,15 @@ class GraphQLService {
     );
   }
 
-  static Future<String?> requestOtp(String mobile) async {
+  static Future<String?> requestOtp(String mobile, {bool isRegister = false}) async {
     final client = await getClient();
     final result = await client.mutate(
       MutationOptions(
         document: gql(requestOtpMutation),
-        variables: {'mobile': mobile},
+        variables: {
+          'mobile': mobile,
+          'isRegister': isRegister,
+        },
       ),
     );
 
@@ -71,7 +74,7 @@ class GraphQLService {
     return result.data?['requestOtp'] as String?;
   }
 
-  static Future<AuthPayload> verifyOtp(String mobile, String otp) async {
+  static Future<AuthPayload> verifyOtp(String mobile, String otp, {Map<String, dynamic>? userDetails}) async {
     final client = await getClient();
     final result = await client.mutate(
       MutationOptions(
@@ -79,6 +82,7 @@ class GraphQLService {
         variables: {
           'mobile': mobile,
           'otp': otp,
+          'userDetails': userDetails,
         },
       ),
     );
@@ -123,6 +127,26 @@ class GraphQLService {
 
     final data = result.data?['users'] as List<dynamic>?;
     return data?.map((e) => User.fromJson(e as Map<String, dynamic>)).toList() ?? [];
+  }
+
+  static Future<bool> checkUserExists({String? mobileNumber, String? email}) async {
+    final client = await getClient();
+    final result = await client.query(
+      QueryOptions(
+        document: gql(checkUserExistsQuery),
+        variables: {
+          'mobileNumber': mobileNumber,
+          'email': email,
+        },
+        fetchPolicy: FetchPolicy.networkOnly,
+      ),
+    );
+
+    if (result.hasException) {
+      throw result.exception!;
+    }
+
+    return result.data?['checkUserExists'] as bool? ?? false;
   }
 
   // User Mutations

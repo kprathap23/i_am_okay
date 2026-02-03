@@ -14,11 +14,13 @@ import 'login_screen.dart';
 class OtpScreen extends StatefulWidget {
   final bool isRegistration;
   final String? mobileNumber;
+  final Map<String, dynamic>? userData;
 
   const OtpScreen({
     super.key,
     this.isRegistration = false,
     this.mobileNumber,
+    this.userData,
   });
 
   @override
@@ -109,12 +111,16 @@ class _OtpScreenState extends State<OtpScreen> {
       final authPayload = await GraphQLService.verifyOtp(
         widget.mobileNumber!,
         otp,
+        userDetails: widget.isRegistration && widget.userData != null
+            ? Map<String, dynamic>.from(widget.userData!)
+            : null,
       );
 
       final token = authPayload.token;
       final user = authPayload.user;
 
       await _storage.write(key: 'auth_token', value: token);
+
       if (user != null) {
         await _storage.write(key: 'user_id', value: user.id);
       }

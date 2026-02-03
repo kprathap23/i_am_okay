@@ -36,6 +36,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _zipCodeFocus = FocusNode();
   final _emailFocus = FocusNode();
 
+  final _formKey = GlobalKey<FormState>();
+
   String? _selectedState;
 
   // Mock data for Zip to State mapping
@@ -100,16 +102,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   Future<void> _handleRegister() async {
     // 1. Validation
-    if (_firstNameController.text.trim().isEmpty ||
-        _lastNameController.text.trim().isEmpty ||
-        _mobileController.text.trim().isEmpty ||
-        _addressLine1Controller.text.trim().isEmpty ||
-        _cityController.text.trim().isEmpty ||
-        _zipCodeController.text.trim().isEmpty ||
-        _selectedState == null) {
+    if (!_formKey.currentState!.validate()) {
+      return;
+    }
+
+    if (_selectedState == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Please fill all required fields'),
+          content: Text('Please select a state'),
           backgroundColor: Colors.red,
         ),
       );
@@ -121,11 +121,22 @@ class _RegisterScreenState extends State<RegisterScreen> {
     try {
       final rawMobile = _mobileController.text.trim();
       final mobile = rawMobile.replaceAll(RegExp(r'\D'), '');
+      final email = _emailController.text.trim();
 
-      // 2. Create User
+      // 2. Check if user already exists
+      final userExists = await GraphQLService.checkUserExists(mobileNumber: mobile);
+      if (userExists) {
+        if (mounted) {
+          LoadingOverlay.hide(context);
+          _showUserExistsDialog(context, mobile);
+        }
+        return;
+      }
+
+      // 3. Prepare User Data (Do not create yet)
       final input = {
         'mobileNumber': mobile,
-        'email': _emailController.text.trim(),
+        if (email.isNotEmpty) 'email': email,
         'name': {
           'firstName': _firstNameController.text.trim(),
           'lastName': _lastNameController.text.trim(),
@@ -140,20 +151,19 @@ class _RegisterScreenState extends State<RegisterScreen> {
         }
       };
 
-      await GraphQLService.createUser(input);
-
-      // 3. Request OTP
-      await GraphQLService.requestOtp(mobile);
+      // 4. Request OTP
+      await GraphQLService.requestOtp(mobile, isRegister: true);
 
       if (mounted) {
         LoadingOverlay.hide(context);
-        // 4. Navigate
+        // 5. Navigate
         Navigator.push(
           context,
           MaterialPageRoute(
             builder: (context) => OtpScreen(
               isRegistration: true,
               mobileNumber: mobile,
+              userData: input,
             ),
           ),
         );
@@ -169,6 +179,40 @@ class _RegisterScreenState extends State<RegisterScreen> {
         );
       }
     }
+  }
+
+  void _showUserExistsDialog(BuildContext context, String mobile) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Account Already Exists'),
+        content: const Text(
+            'An account with this mobile number already exists. Would you like to log in instead?'),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context); // Close dialog
+              FocusScope.of(context).requestFocus(_mobileFocus);
+            },
+            child: const Text('Edit Number'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context); // Close dialog
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => LoginScreen(
+                    initialMobileNumber: mobile,
+                  ),
+                ),
+              );
+            },
+            child: const Text('Login'),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -195,132 +239,201 @@ class _RegisterScreenState extends State<RegisterScreen> {
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              CustomTextField(
-                label: 'First Name',
-                hint: 'Enter your first name',
-                controller: _firstNameController,
-                focusNode: _firstNameFocus,
-                textInputAction: TextInputAction.next,
-                onSubmitted: (_) => FocusScope.of(context).requestFocus(_lastNameFocus),
-              ),
-              const SizedBox(height: 24.0),
-              CustomTextField(
-                label: 'Last Name',
-                hint: 'Enter your last name',
-                controller: _lastNameController,
-                focusNode: _lastNameFocus,
-                textInputAction: TextInputAction.next,
-                onSubmitted: (_) => FocusScope.of(context).requestFocus(_aliasNameFocus),
-              ),
-              const SizedBox(height: 24.0),
-              CustomTextField(
-                label: 'Alias Name',
-                hint: 'Enter your alias name',
-                controller: _aliasNameController,
-                isOptional: true,
-                focusNode: _aliasNameFocus,
-                textInputAction: TextInputAction.next,
-                onSubmitted: (_) => FocusScope.of(context).requestFocus(_mobileFocus),
-              ),
-              const SizedBox(height: 24.0),
-              CustomTextField(
-                label: 'Mobile Number',
-                hint: 'Enter your mobile number',
-                keyboardType: TextInputType.phone,
-                controller: _mobileController,
-                inputFormatters: [PhoneInputFormatter()],
-                focusNode: _mobileFocus,
-                textInputAction: TextInputAction.next,
-                onSubmitted: (_) => FocusScope.of(context).requestFocus(_addressLine1Focus),
-              ),
-              const SizedBox(height: 24.0),
-              CustomTextField(
-                label: 'Address Line 1',
-                hint: 'Street address, P.O. box, etc.',
-                controller: _addressLine1Controller,
-                keyboardType: TextInputType.streetAddress,
-                focusNode: _addressLine1Focus,
-                textInputAction: TextInputAction.next,
-                onSubmitted: (_) => FocusScope.of(context).requestFocus(_addressLine2Focus),
-              ),
-              const SizedBox(height: 24.0),
-              CustomTextField(
-                label: 'Address Line 2',
-                hint: 'Apartment, suite, unit, etc.',
-                controller: _addressLine2Controller,
-                isOptional: true,
-                focusNode: _addressLine2Focus,
-                textInputAction: TextInputAction.next,
-                onSubmitted: (_) => FocusScope.of(context).requestFocus(_cityFocus),
-              ),
-              const SizedBox(height: 24.0),
-              CustomTextField(
-                label: 'City',
-                hint: 'Enter your city',
-                controller: _cityController,
-                focusNode: _cityFocus,
-                textInputAction: TextInputAction.next,
-                onSubmitted: (_) => FocusScope.of(context).requestFocus(_zipCodeFocus),
-              ),
-              const SizedBox(height: 24.0),
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(
-                    flex: 1,
-                    child: CustomTextField(
-                      label: 'Zip Code',
-                      hint: 'Zip Code',
-                      keyboardType: TextInputType.number,
-                      controller: _zipCodeController,
-                      focusNode: _zipCodeFocus,
-                      textInputAction: TextInputAction.next,
-                      onSubmitted: (_) => FocusScope.of(context).requestFocus(_emailFocus),
+          child: Form(
+            key: _formKey,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                CustomTextField(
+                  label: 'First Name',
+                  hint: 'Enter your first name',
+                  controller: _firstNameController,
+                  focusNode: _firstNameFocus,
+                  textInputAction: TextInputAction.next,
+                  onSubmitted: (_) => FocusScope.of(context).requestFocus(_lastNameFocus),
+                  validator: (value) {
+                    if (value == null || value.trim().isEmpty) {
+                      return 'First name is required';
+                    }
+                    if (!RegExp(r'^[a-zA-Z\s]+$').hasMatch(value)) {
+                      return 'Only alphabets are allowed';
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 24.0),
+                CustomTextField(
+                  label: 'Last Name',
+                  hint: 'Enter your last name',
+                  controller: _lastNameController,
+                  focusNode: _lastNameFocus,
+                  textInputAction: TextInputAction.next,
+                  onSubmitted: (_) => FocusScope.of(context).requestFocus(_aliasNameFocus),
+                  validator: (value) {
+                    if (value == null || value.trim().isEmpty) {
+                      return 'Last name is required';
+                    }
+                    if (!RegExp(r'^[a-zA-Z\s]+$').hasMatch(value)) {
+                      return 'Only alphabets are allowed';
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 24.0),
+                CustomTextField(
+                  label: 'Alias Name',
+                  hint: 'Enter your alias name',
+                  controller: _aliasNameController,
+                  isOptional: true,
+                  focusNode: _aliasNameFocus,
+                  textInputAction: TextInputAction.next,
+                  onSubmitted: (_) => FocusScope.of(context).requestFocus(_mobileFocus),
+                  validator: (value) {
+                    if (value != null && value.isNotEmpty && !RegExp(r'^[a-zA-Z\s]+$').hasMatch(value)) {
+                      return 'Only alphabets are allowed';
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 24.0),
+                CustomTextField(
+                  label: 'Mobile Number',
+                  hint: 'Enter your mobile number',
+                  keyboardType: TextInputType.phone,
+                  controller: _mobileController,
+                  inputFormatters: [PhoneInputFormatter()],
+                  focusNode: _mobileFocus,
+                  textInputAction: TextInputAction.next,
+                  onSubmitted: (_) => FocusScope.of(context).requestFocus(_addressLine1Focus),
+                  validator: (value) {
+                    if (value == null || value.trim().isEmpty) {
+                      return 'Mobile number is required';
+                    }
+                    final digits = value.replaceAll(RegExp(r'\D'), '');
+                    if (digits.length != 10) {
+                      return 'Enter a valid 10-digit mobile number';
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 24.0),
+                CustomTextField(
+                  label: 'Address Line 1',
+                  hint: 'Street address, P.O. box, etc.',
+                  controller: _addressLine1Controller,
+                  keyboardType: TextInputType.streetAddress,
+                  focusNode: _addressLine1Focus,
+                  textInputAction: TextInputAction.next,
+                  onSubmitted: (_) => FocusScope.of(context).requestFocus(_addressLine2Focus),
+                  validator: (value) {
+                    if (value == null || value.trim().isEmpty) {
+                      return 'Address Line 1 is required';
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 24.0),
+                CustomTextField(
+                  label: 'Address Line 2',
+                  hint: 'Apartment, suite, unit, etc.',
+                  controller: _addressLine2Controller,
+                  isOptional: true,
+                  focusNode: _addressLine2Focus,
+                  textInputAction: TextInputAction.next,
+                  onSubmitted: (_) => FocusScope.of(context).requestFocus(_cityFocus),
+                ),
+                const SizedBox(height: 24.0),
+                CustomTextField(
+                  label: 'City',
+                  hint: 'Enter your city',
+                  controller: _cityController,
+                  focusNode: _cityFocus,
+                  textInputAction: TextInputAction.next,
+                  onSubmitted: (_) => FocusScope.of(context).requestFocus(_zipCodeFocus),
+                  validator: (value) {
+                    if (value == null || value.trim().isEmpty) {
+                      return 'City is required';
+                    }
+                    if (!RegExp(r'^[a-zA-Z\s]+$').hasMatch(value)) {
+                      return 'Only alphabets are allowed';
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 24.0),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      flex: 1,
+                      child: CustomTextField(
+                        label: 'Zip Code',
+                        hint: 'Zip Code',
+                        keyboardType: TextInputType.number,
+                        controller: _zipCodeController,
+                        focusNode: _zipCodeFocus,
+                        textInputAction: TextInputAction.next,
+                        onSubmitted: (_) => FocusScope.of(context).requestFocus(_emailFocus),
+                        validator: (value) {
+                          if (value == null || value.trim().isEmpty) {
+                            return 'Zip Code is required';
+                          }
+                          if (!RegExp(r'^\d{5}$').hasMatch(value)) {
+                            return 'Enter a valid 5-digit Zip Code';
+                          }
+                          return null;
+                        },
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: 16.0),
-                  Expanded(
-                    flex: 1,
-                    child: CustomDropdownField<String>(
-                      label: 'State',
-                      hint: 'Select State',
-                      value: _selectedState,
-                      items: _states.map((String state) {
-                        return DropdownMenuItem<String>(
-                          value: state,
-                          child: Text(state),
-                        );
-                      }).toList(),
-                      onChanged: (String? newValue) {
-                        setState(() {
-                          _selectedState = newValue;
-                        });
-                      },
+                    const SizedBox(width: 16.0),
+                    Expanded(
+                      flex: 1,
+                      child: CustomDropdownField<String>(
+                        label: 'State',
+                        hint: 'Select State',
+                        value: _selectedState,
+                        items: _states.map((String state) {
+                          return DropdownMenuItem<String>(
+                            value: state,
+                            child: Text(state),
+                          );
+                        }).toList(),
+                        onChanged: (String? newValue) {
+                          setState(() {
+                            _selectedState = newValue;
+                          });
+                        },
+                      ),
                     ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 24.0),
-              CustomTextField(
-                label: 'Email',
-                hint: 'Enter your email address',
-                keyboardType: TextInputType.emailAddress,
-                controller: _emailController,
-                isOptional: true,
-                focusNode: _emailFocus,
-                textInputAction: TextInputAction.done,
-                onSubmitted: (_) => _handleRegister(),
-              ),
-              const SizedBox(height: 40.0),
-              CustomButton(
-                text: 'Register',
-                onPressed: _handleRegister,
-              ),
-              const SizedBox(height: 24.0),
-            ],
+                  ],
+                ),
+                const SizedBox(height: 24.0),
+                CustomTextField(
+                  label: 'Email',
+                  hint: 'Enter your email address',
+                  keyboardType: TextInputType.emailAddress,
+                  controller: _emailController,
+                  isOptional: true,
+                  focusNode: _emailFocus,
+                  textInputAction: TextInputAction.done,
+                  onSubmitted: (_) => _handleRegister(),
+                  validator: (value) {
+                    if (value != null && value.isNotEmpty) {
+                      if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(value)) {
+                        return 'Enter a valid email address';
+                      }
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 40.0),
+                CustomButton(
+                  text: 'Register',
+                  onPressed: _handleRegister,
+                ),
+                const SizedBox(height: 24.0),
+              ],
+            ),
           ),
         ),
       ),
