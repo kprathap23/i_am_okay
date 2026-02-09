@@ -47,5 +47,12 @@
 	<true/>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>This app needs access to location when open to attach your location to safety check-ins.</string>
+	<key>NSFaceIDUsageDescription</key>
+	<string>We use FaceID to authenticate you quickly and securely.</string>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>fetch</string>
+		<string>processing</string>
+	</array>
 </dict>
 </plist>

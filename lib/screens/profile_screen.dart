@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../widgets/custom_button.dart';
 import '../services/graphql_service.dart';
+import '../services/notification_service.dart';
 import '../models/user_model.dart';
 import 'landing_screen.dart';
 
@@ -217,6 +218,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> _logout() async {
+    // Cancel all notifications on logout
+    await NotificationService().cancelAllNotifications();
+
     await _storage.deleteAll();
     if (mounted) {
       Navigator.pushAndRemoveUntil(

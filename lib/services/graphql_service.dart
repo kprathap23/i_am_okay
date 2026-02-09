@@ -149,6 +149,10 @@ class GraphQLService {
     return result.data?['checkUserExists'] as bool? ?? false;
   }
 
+  static Future<List<User>> getDashboardUsers() async {
+    return getUsers();
+  }
+
   // User Mutations
   static Future<User> createUser(Map<String, dynamic> input) async {
     final client = await getClient();

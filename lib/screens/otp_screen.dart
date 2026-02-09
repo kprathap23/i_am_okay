@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
-import 'package:graphql_flutter/graphql_flutter.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../widgets/custom_button.dart';
 import '../widgets/custom_text_field.dart';
@@ -8,8 +7,7 @@ import '../widgets/loading_overlay.dart';
 import '../services/graphql_service.dart';
 import 'emergency_contact_screen.dart';
 import 'daily_reminder_screen.dart';
-import 'home_screen.dart';
-import 'login_screen.dart';
+import 'permission_screen.dart';
 
 class OtpScreen extends StatefulWidget {
   final bool isRegistration;
@@ -89,7 +87,7 @@ class _OtpScreenState extends State<OtpScreen> {
     }
   }
 
-  Future<void> _handleVerify(BuildContext context) async {
+  Future<void> _handleVerify() async {
     final otp = _otpController.text;
     if (otp.length != 6) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -149,10 +147,10 @@ class _OtpScreenState extends State<OtpScreen> {
             (route) => false,
           );
         } else {
-          // All good, go to Home
+          // All good, go to Permissions then Home
           Navigator.pushAndRemoveUntil(
             context,
-            MaterialPageRoute(builder: (context) => const HomeScreen()),
+            MaterialPageRoute(builder: (context) => const PermissionScreen()),
             (route) => false,
           );
         }
@@ -234,8 +232,8 @@ class _OtpScreenState extends State<OtpScreen> {
               ),
               const SizedBox(height: 32),
               CustomButton(
-                text: 'Verify',
-                onPressed: () => _handleVerify(context),
+                text: 'Verify & Login',
+                onPressed: _handleVerify,
               ),
               const SizedBox(height: 16),
               Center(

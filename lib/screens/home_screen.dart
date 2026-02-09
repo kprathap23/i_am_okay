@@ -3,8 +3,8 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:geolocator/geolocator.dart';
 import '../services/graphql_service.dart';
+import '../services/notification_service.dart';
 import '../widgets/loading_overlay.dart';
-import '../models/user_model.dart';
 import 'emergency_contact_screen.dart';
 import 'daily_reminder_screen.dart';
 import 'history_screen.dart';
@@ -108,6 +108,7 @@ class _HomeContentState extends State<HomeContent>
   String? _userName;
   String? _userAlias;
   String? _reminderTime;
+  TimeOfDay? _checkInTimeOfDay;
   bool _isPaused = false;
   DateTime? _pausedUntil;
 
@@ -141,11 +142,34 @@ class _HomeContentState extends State<HomeContent>
                     hour: int.parse(timeParts[0]),
                     minute: int.parse(timeParts[1]),
                   );
+                  _checkInTimeOfDay = time;
                   _reminderTime = time.format(context);
                 }
               }
             }
           });
+
+          // Handle notifications outside setState
+          if (user.reminderSettings != null && user.reminderSettings!.checkInTime != null) {
+             final timeParts = user.reminderSettings!.checkInTime!.split(':');
+             if (timeParts.length == 2) {
+               final time = TimeOfDay(
+                 hour: int.parse(timeParts[0]),
+                 minute: int.parse(timeParts[1]),
+               );
+               final isPaused = user.reminderSettings!.isPaused ?? false;
+               final pausedUntil = user.reminderSettings!.pausedUntil;
+               
+
+               // Schedule if not paused OR if the pause duration has expired
+               // ignoring pausedUntil if isPaused is false
+               if (!isPaused || (pausedUntil != null && DateTime.now().isAfter(pausedUntil))) {
+                  await NotificationService().scheduleDailyNotification(time);
+               } else {
+                  await NotificationService().cancelAllNotifications();
+               }
+             }
+          }
         }
       }
     } catch (e) {
@@ -185,21 +209,21 @@ class _HomeContentState extends State<HomeContent>
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('No'),
             style: TextButton.styleFrom(
               foregroundColor: const Color(0xFF333333),
             ),
+            child: const Text('No'),
           ),
           TextButton(
             onPressed: () {
               Navigator.pop(context);
               _updateReminderStatus(false, null);
             },
-            child: const Text('Yes, Resume'),
             style: TextButton.styleFrom(
               foregroundColor: const Color(0xFF1F4ED8),
               textStyle: const TextStyle(fontWeight: FontWeight.bold),
             ),
+            child: const Text('Yes, Resume'),
           ),
         ],
       ),
@@ -227,7 +251,9 @@ class _HomeContentState extends State<HomeContent>
           if (permission == LocationPermission.whileInUse ||
               permission == LocationPermission.always) {
             final position = await Geolocator.getCurrentPosition(
-              desiredAccuracy: LocationAccuracy.high,
+              locationSettings: const LocationSettings(
+                accuracy: LocationAccuracy.high,
+              ),
             );
             locationData = {
               'lat': position.latitude,
@@ -256,6 +282,26 @@ class _HomeContentState extends State<HomeContent>
 
       await GraphQLService.createCheckIn(checkInPayload);
 
+      // Cancel the check-in reminder notification since user has checked in
+      if (_checkInTimeOfDay != null) {
+        await NotificationService().completeDailyCheckIn(_checkInTimeOfDay!);
+      } else if (_reminderTime != null) {
+        // Fallback for parsing if _checkInTimeOfDay is null for some reason
+        try {
+          final parts = _reminderTime!.split(':');
+          if (parts.length == 2) {
+            // This might fail if format is 12h, so we try-catch it
+             final time = TimeOfDay(
+              hour: int.parse(parts[0]),
+              minute: int.parse(parts[1]),
+            );
+            await NotificationService().completeDailyCheckIn(time);
+          }
+        } catch (e) {
+          debugPrint('Error parsing time from string: $e');
+        }
+      }
+
       if (mounted) {
         LoadingOverlay.hide(context);
         ScaffoldMessenger.of(context).showSnackBar(
@@ -267,6 +313,7 @@ class _HomeContentState extends State<HomeContent>
       }
     } catch (e) {
       if (mounted) {
+        debugPrint(e.toString());
         LoadingOverlay.hide(context);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -356,10 +403,10 @@ class _HomeContentState extends State<HomeContent>
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
             style: TextButton.styleFrom(
               foregroundColor: const Color(0xFF333333),
             ),
+            child: const Text('Cancel'),
           ),
         ],
       ),

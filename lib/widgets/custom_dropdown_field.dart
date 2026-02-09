@@ -56,17 +56,7 @@ class CustomDropdownField<T> extends StatelessWidget {
           ],
         ),
         const SizedBox(height: 8.0),
-        DropdownButtonFormField<T>(
-          value: value,
-          items: items,
-          onChanged: onChanged,
-          validator: validator,
-          autovalidateMode: AutovalidateMode.onUserInteraction,
-          style: const TextStyle(
-            fontSize: 18.0,
-            fontWeight: FontWeight.w400,
-            color: Color(0xFF000000),
-          ),
+        InputDecorator(
           decoration: InputDecoration(
             hintText: hint,
             hintStyle: const TextStyle(
@@ -92,8 +82,23 @@ class CustomDropdownField<T> extends StatelessWidget {
             ),
             filled: true,
             fillColor: const Color(0xFFFAFAFA),
+            errorText: validator != null && value != null ? validator!(value) : null,
           ),
-          icon: const Icon(Icons.keyboard_arrow_down, color: Color(0xFF666666)),
+          child: DropdownButtonHideUnderline(
+            child: DropdownButton<T>(
+              value: value,
+              items: items,
+              onChanged: onChanged,
+              style: const TextStyle(
+                fontSize: 18.0,
+                fontWeight: FontWeight.w400,
+                color: Color(0xFF000000),
+              ),
+              icon: const Icon(Icons.keyboard_arrow_down, color: Color(0xFF666666)),
+              isDense: true,
+              isExpanded: true,
+            ),
+          ),
         ),
       ],
     );

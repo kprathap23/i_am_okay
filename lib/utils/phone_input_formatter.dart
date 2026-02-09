@@ -20,7 +20,7 @@ class PhoneInputFormatter extends TextInputFormatter {
         : digitsOnly;
 
     final buffer = StringBuffer();
-    int selectionIndex = newValue.selection.end;
+    // int selectionIndex = newValue.selection.end;
 
     // Adjust selection index based on formatting characters added/removed
     // This simple approach recalculates the cursor position at the end of the formatted text

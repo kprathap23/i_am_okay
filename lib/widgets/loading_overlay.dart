@@ -5,7 +5,7 @@ class LoadingOverlay {
     showDialog(
       context: context,
       barrierDismissible: false,
-      barrierColor: Colors.black.withOpacity(0.5),
+      barrierColor: Colors.black.withValues(alpha: 0.5),
       builder: (BuildContext context) {
         return const Center(
           child: CircularProgressIndicator(

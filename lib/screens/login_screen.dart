@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
-import 'package:graphql_flutter/graphql_flutter.dart';
 import '../widgets/custom_button.dart';
 import '../widgets/custom_text_field.dart';
 import '../widgets/loading_overlay.dart';
@@ -35,7 +34,7 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
-  Future<void> _handleLogin(BuildContext context) async {
+  Future<void> _handleLogin() async {
     if (!_formKey.currentState!.validate()) {
       return;
     }
@@ -46,8 +45,7 @@ class _LoginScreenState extends State<LoginScreen> {
     LoadingOverlay.show(context);
 
     try {
-      // ignore: unused_local_variable
-      final result = await GraphQLService.requestOtp(mobile);
+      await GraphQLService.requestOtp(mobile);
 
       if (mounted) {
         LoadingOverlay.hide(context);
@@ -67,7 +65,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
         final errorMessage = e.toString().toLowerCase();
         if (errorMessage.contains('not found')) {
-          _showAccountNotFoundDialog(context);
+          _showAccountNotFoundDialog();
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
@@ -80,7 +78,7 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
-  void _showAccountNotFoundDialog(BuildContext context) {
+  void _showAccountNotFoundDialog() {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -176,7 +174,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 controller: _mobileController,
                 inputFormatters: [PhoneInputFormatter()],
                 textInputAction: TextInputAction.done,
-                onSubmitted: (_) => _handleLogin(context),
+                onSubmitted: (_) => _handleLogin(),
                 validator: (value) {
                   if (value == null || value.isEmpty) {
                     return 'Please enter mobile number';
@@ -191,7 +189,7 @@ class _LoginScreenState extends State<LoginScreen> {
               const SizedBox(height: 32),
               CustomButton(
                 text: 'Sign In',
-                onPressed: () => _handleLogin(context),
+                onPressed: _handleLogin,
               ),
               const SizedBox(height: 16),
               Row(

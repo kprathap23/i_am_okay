@@ -3,7 +3,6 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../widgets/custom_button.dart';
 import '../widgets/custom_text_field.dart';
 import '../widgets/custom_dropdown_field.dart';
-import '../widgets/loading_overlay.dart';
 import '../services/graphql_service.dart';
 import '../utils/phone_input_formatter.dart';
 import 'daily_reminder_screen.dart';
@@ -153,6 +152,26 @@ class _EmergencyContactScreenState extends State<EmergencyContactScreen> {
     
     if (!_formKey.currentState!.validate()) {
       return false;
+    }
+
+    final inputPhone = _phoneController.text.trim().replaceAll(RegExp(r'\D'), '');
+
+    // Check for duplicates
+    for (int i = 0; i < _contacts.length; i++) {
+      // Skip if we are editing this specific contact
+      if (_editingIndex != null && i == _editingIndex) continue;
+
+      final existingPhone = _contacts[i]['phone'].toString().replaceAll(RegExp(r'\D'), '');
+      
+      if (existingPhone == inputPhone) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('This phone number is already added as an emergency contact.'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return false;
+      }
     }
 
     final newContact = {

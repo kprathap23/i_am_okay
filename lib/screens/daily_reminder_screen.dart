@@ -3,7 +3,8 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../widgets/custom_button.dart';
 import '../widgets/loading_overlay.dart';
 import '../services/graphql_service.dart';
-import 'home_screen.dart';
+import '../services/notification_service.dart';
+import 'permission_screen.dart';
 
 class DailyReminderScreen extends StatefulWidget {
   const DailyReminderScreen({super.key});
@@ -81,15 +82,20 @@ class _DailyReminderScreenState extends State<DailyReminderScreen> {
         },
       });
 
+      // Schedule local notification
+      await NotificationService().requestPermissions();
+      await NotificationService().scheduleDailyNotification(_selectedTime!);
+
       if (mounted) {
         LoadingOverlay.hide(context);
         Navigator.pushAndRemoveUntil(
           context,
-          MaterialPageRoute(builder: (context) => const HomeScreen()),
+          MaterialPageRoute(builder: (context) => const PermissionScreen()),
           (route) => false,
         );
       }
     } catch (e) {
+      debugPrint("hello error$e");
       if (mounted) {
         LoadingOverlay.hide(context);
         ScaffoldMessenger.of(context).showSnackBar(

@@ -121,7 +121,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
         itemCount: _checkIns.length,
         itemBuilder: (context, index) {
           final checkIn = _checkIns[index];
-          final date = checkIn.timestamp ?? checkIn.createdAt ?? DateTime.now();
+          final date = (checkIn.timestamp ?? checkIn.createdAt ?? DateTime.now()).toLocal();
           final formattedDate = DateFormat('MMM d, yyyy').format(date);
           final formattedTime = DateFormat('h:mm a').format(date);
 
@@ -142,7 +142,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                       width: 50,
                       height: 50,
                       decoration: BoxDecoration(
-                        color: _getStatusColor(checkIn.status).withOpacity(0.1),
+                        color: _getStatusColor(checkIn.status).withValues(alpha: 0.1),
                         shape: BoxShape.circle,
                       ),
                       child: Icon(
@@ -217,7 +217,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
   }
 
   Future<void> _showCheckInDetails(BuildContext context, CheckIn checkIn) async {
-    final date = checkIn.timestamp ?? checkIn.createdAt ?? DateTime.now();
+    final date = (checkIn.timestamp ?? checkIn.createdAt ?? DateTime.now()).toLocal();
     final formattedDate = DateFormat('MMM d, yyyy').format(date);
     final formattedTime = DateFormat('h:mm a').format(date);
 
@@ -284,10 +284,10 @@ class _HistoryScreenState extends State<HistoryScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Close'),
             style: TextButton.styleFrom(
               foregroundColor: const Color(0xFF333333),
             ),
+            child: const Text('Close'),
           ),
           if (hasValidLocation)
             ElevatedButton.icon(

@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../widgets/custom_button.dart';
+import '../services/biometric_service.dart';
 import 'register_screen.dart';
 import 'login_screen.dart';
+import 'permission_screen.dart';
 
 class LandingScreen extends StatefulWidget {
   const LandingScreen({super.key});
@@ -40,6 +43,44 @@ class _LandingScreenState extends State<LandingScreen>
     );
 
     _controller.forward();
+    
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _checkBiometricLogin();
+    });
+  }
+
+  Future<void> _checkBiometricLogin() async {
+    const storage = FlutterSecureStorage();
+    final token = await storage.read(key: 'auth_token');
+    debugPrint('Checking biometric login. Token exists: ${token != null}');
+
+    if (token != null) {
+      // Small delay to let the UI render and animation start
+      await Future.delayed(const Duration(milliseconds: 500));
+
+      final isAvailable = await BiometricService.isBiometricAvailable();
+      debugPrint('Biometric available: $isAvailable');
+
+      if (isAvailable && mounted) {
+        final authenticated = await BiometricService.authenticate();
+        debugPrint('Authentication result: $authenticated');
+        
+        if (authenticated && mounted) {
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(builder: (context) => const PermissionScreen()),
+          );
+        } else if (mounted) {
+           ScaffoldMessenger.of(context).showSnackBar(
+             const SnackBar(content: Text('Authentication failed or cancelled')),
+           );
+        }
+      } else if (mounted) {
+         debugPrint('Biometrics not available on this device');
+         ScaffoldMessenger.of(context).showSnackBar(
+           const SnackBar(content: Text('Biometrics not available. Please login again.')),
+         );
+      }
+    }
   }
 
   @override
@@ -64,7 +105,7 @@ class _LandingScreenState extends State<LandingScreen>
           ),
           // Overlay to ensure text readability
           Container(
-            color: Colors.white.withOpacity(0.3),
+            color: Colors.white.withValues(alpha: 0.3),
           ),
           // Content
           SafeArea(
