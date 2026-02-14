@@ -1,21 +1,26 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../widgets/custom_button.dart';
 import '../widgets/custom_text_field.dart';
 import '../widgets/loading_overlay.dart';
 import '../services/graphql_service.dart';
+import '../services/biometric_service.dart';
 import '../utils/phone_input_formatter.dart';
 import 'register_screen.dart';
 import 'otp_screen.dart';
+import 'permission_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   final bool fromRegistration;
   final String? initialMobileNumber;
+  final bool autoBiometric;
 
   const LoginScreen({
     super.key,
     this.fromRegistration = false,
     this.initialMobileNumber,
+    this.autoBiometric = false,
   });
 
   @override
@@ -25,12 +30,58 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> {
   final _mobileController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
+  final _storage = const FlutterSecureStorage();
+  bool _canUseBiometric = false;
 
   @override
   void initState() {
     super.initState();
     if (widget.initialMobileNumber != null) {
       _mobileController.text = widget.initialMobileNumber!;
+    }
+    _checkBiometricLoginAvailable();
+  }
+
+  Future<void> _checkBiometricLoginAvailable() async {
+    final isHardwareAvailable = await BiometricService.isBiometricAvailable();
+    final token = await _storage.read(key: 'auth_token');
+    
+    // If mobile number is not provided, try to fetch from storage
+    if (_mobileController.text.isEmpty) {
+      final storedMobile = await _storage.read(key: 'mobile_number');
+      if (storedMobile != null && mounted) {
+        setState(() {
+          _mobileController.text = storedMobile;
+        });
+      }
+    }
+
+    final canUse = isHardwareAvailable && token != null;
+
+    if (mounted) {
+      setState(() {
+        _canUseBiometric = canUse;
+      });
+
+      // Automatically attempt biometric login if available
+      if (canUse) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          _attemptBiometric();
+        });
+      }
+    }
+  }
+
+  Future<void> _attemptBiometric() async {
+    if (!_canUseBiometric) return;
+
+    final authenticated = await BiometricService.authenticate();
+    if (authenticated && mounted) {
+       Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (context) => const PermissionScreen()),
+        (route) => false,
+      );
     }
   }
 
@@ -191,6 +242,30 @@ class _LoginScreenState extends State<LoginScreen> {
                 text: 'Sign In',
                 onPressed: _handleLogin,
               ),
+              if (_canUseBiometric && _mobileController.text.isNotEmpty) ...[
+                const SizedBox(height: 24),
+                Center(
+                  child: IconButton(
+                    iconSize: 48,
+                    icon: const Icon(
+                      Icons.fingerprint,
+                      color: Color(0xFF1F4ED8),
+                    ),
+                    onPressed: _attemptBiometric,
+                    tooltip: 'Login with Biometrics',
+                  ),
+                ),
+                const SizedBox(height: 8),
+                const Center(
+                  child: Text(
+                    'Tap to use Biometrics',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Color(0xFF666666),
+                    ),
+                  ),
+                ),
+              ],
               const SizedBox(height: 16),
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,

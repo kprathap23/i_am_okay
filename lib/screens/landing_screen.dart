@@ -2,10 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../widgets/custom_button.dart';
-import '../services/biometric_service.dart';
 import 'register_screen.dart';
 import 'login_screen.dart';
-import 'permission_screen.dart';
 
 class LandingScreen extends StatefulWidget {
   const LandingScreen({super.key});
@@ -45,40 +43,28 @@ class _LandingScreenState extends State<LandingScreen>
     _controller.forward();
     
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _checkBiometricLogin();
+      _checkAutoLogin();
     });
   }
 
-  Future<void> _checkBiometricLogin() async {
+  Future<void> _checkAutoLogin() async {
     const storage = FlutterSecureStorage();
     final token = await storage.read(key: 'auth_token');
-    debugPrint('Checking biometric login. Token exists: ${token != null}');
-
-    if (token != null) {
+    final mobile = await storage.read(key: 'mobile_number');
+    
+    if (token != null && mobile != null && mounted) {
       // Small delay to let the UI render and animation start
       await Future.delayed(const Duration(milliseconds: 500));
 
-      final isAvailable = await BiometricService.isBiometricAvailable();
-      debugPrint('Biometric available: $isAvailable');
-
-      if (isAvailable && mounted) {
-        final authenticated = await BiometricService.authenticate();
-        debugPrint('Authentication result: $authenticated');
-        
-        if (authenticated && mounted) {
-          Navigator.of(context).pushReplacement(
-            MaterialPageRoute(builder: (context) => const PermissionScreen()),
-          );
-        } else if (mounted) {
-           ScaffoldMessenger.of(context).showSnackBar(
-             const SnackBar(content: Text('Authentication failed or cancelled')),
-           );
-        }
-      } else if (mounted) {
-         debugPrint('Biometrics not available on this device');
-         ScaffoldMessenger.of(context).showSnackBar(
-           const SnackBar(content: Text('Biometrics not available. Please login again.')),
-         );
+      if (mounted) {
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(
+            builder: (context) => LoginScreen(
+              initialMobileNumber: mobile,
+              autoBiometric: true,
+            ),
+          ),
+        );
       }
     }
   }
@@ -185,12 +171,12 @@ class _LandingScreenState extends State<LandingScreen>
                     'Powered by ',
                     style: TextStyle(
                       fontSize: 12.0,
-                      color: Color.fromARGB(255, 236, 217, 217),
+                      color: Color.fromARGB(255, 0, 0, 0),
                     ),
                   ),
                   const SizedBox(width: 8),
-                  Image.asset(
-                    'assets/icons/infodat-logo-white.webp',
+                  SvgPicture.asset(
+                    'assets/icons/InfodatLogoTop.svg',
                     height: 20,
                   ),
                   const SizedBox(width: 8),

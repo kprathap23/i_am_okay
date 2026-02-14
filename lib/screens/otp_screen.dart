@@ -118,6 +118,9 @@ class _OtpScreenState extends State<OtpScreen> {
       final user = authPayload.user;
 
       await _storage.write(key: 'auth_token', value: token);
+      if (widget.mobileNumber != null) {
+        await _storage.write(key: 'mobile_number', value: widget.mobileNumber!);
+      }
 
       if (user != null) {
         await _storage.write(key: 'user_id', value: user.id);
