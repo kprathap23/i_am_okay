@@ -7,6 +7,7 @@ import '../services/notification_service.dart';
 import '../widgets/loading_overlay.dart';
 import 'emergency_contact_screen.dart';
 import 'daily_reminder_screen.dart';
+import '../widgets/custom_bottom_navbar.dart';
 import 'history_screen.dart';
 import 'profile_screen.dart';
 
@@ -59,35 +60,13 @@ class _HomeScreenState extends State<HomeScreen> {
         centerTitle: false,
       ),
       body: _screens[_currentIndex],
-      bottomNavigationBar: BottomNavigationBar(
+      bottomNavigationBar: CustomBottomNavbar(
         currentIndex: _currentIndex,
         onTap: (index) {
           setState(() {
             _currentIndex = index;
           });
         },
-        type: BottomNavigationBarType.fixed,
-        backgroundColor: Colors.white,
-        selectedItemColor: const Color(0xFF1F4ED8),
-        unselectedItemColor: const Color(0xFF333333),
-        items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.home),
-            label: 'Home',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.history),
-            label: 'History',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.contact_phone),
-            label: 'Contacts',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.person),
-            label: 'Profile',
-          ),
-        ],
       ),
     );
   }
@@ -444,223 +423,272 @@ class _HomeContentState extends State<HomeContent>
     );
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFFFFFFF),
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            if (_userName != null && _userName!.isNotEmpty) ...[
-              Text(
-                'Hi, $_userName${_userAlias != null && _userAlias!.isNotEmpty ? ' ($_userAlias)' : ''}',
-                style: const TextStyle(
-                  fontSize: 24.0,
-                  fontWeight: FontWeight.w500,
-                  color: Color(0xFF333333),
-                ),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 8),
-            ],
-            const Text(
-              'How are you feeling?',
+  Widget _buildPauseResumeButton() {
+    if (_isPaused) {
+      return Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Icon(Icons.play_arrow, color: Color(0xFF666666)),
+          const SizedBox(width: 8),
+          GestureDetector(
+            onTap: _showResumeConfirmDialog,
+            child: const Text(
+              'Resume Reminder',
               style: TextStyle(
-                fontSize: 28.0,
-                fontWeight: FontWeight.w600,
-                color: Color(0xFF000000),
+                fontSize: 18.0,
+                fontWeight: FontWeight.w500,
+                color: Color(0xFF1F4ED8), // Link color
+                decoration: TextDecoration.underline,
               ),
-              textAlign: TextAlign.center,
             ),
-            const SizedBox(height: 12),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24.0),
-              child: _reminderTime != null
-                  ? RichText(
-                      textAlign: TextAlign.center,
+          ),
+        ],
+      );
+    }
+    return TextButton.icon(
+      onPressed: _showPauseReminderOptions,
+      icon: const Icon(Icons.pause, color: Color(0xFF666666)),
+      label: const Text(
+        'Pause Reminder',
+        style: TextStyle(color: Color(0xFF666666), fontSize: 16),
+      ),
+    );
+  }
+
+  Widget _buildMainActionButton() {
+    return GestureDetector(
+      onTap: _isPaused ? _showResumeConfirmDialog : _handleCheckIn,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          // Continuous Ripples (only if not paused)
+          if (!_isPaused)
+            ...List.generate(3, (index) {
+              return AnimatedBuilder(
+                animation: _controller,
+                builder: (context, child) {
+                  final double offset = index / 3.0;
+                  final double value = (_controller.value + offset) % 1.0;
+                  return Transform.scale(
+                    scale: 1.0 + (value * 0.5), // Expand to 1.5x
+                    child: Container(
+                      width: 200, // Start at button size
+                      height: 200,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: const Color(0xFF1F4ED8).withAlpha((255 * 0.3 * (1 - value)).toInt()),
+                      ),
+                    ),
+                  );
+                },
+              );
+            }),
+          // Main Button
+          Container(
+            width: 200,
+            height: 200,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: _isPaused ? Colors.grey[400] : Colors.white,
+              border: _isPaused
+                  ? null
+                  : Border.all(
+                      color: const Color(0xFF1F4ED8).withAlpha((255 * 0.5).toInt()),
+                      width: 1.0,
+                    ),
+              boxShadow: [
+                BoxShadow(
+                  color: (_isPaused ? Colors.grey : const Color(0xFF1F4ED8))
+                      .withAlpha((255 * 0.2).toInt()),
+                  blurRadius: 20,
+                  spreadRadius: 2,
+                ),
+              ],
+            ),
+            child: Center(
+              child: _isPaused
+                  ? Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(Icons.pause, color: Colors.white, size: 48),
+                        const SizedBox(height: 8),
+                        const Text(
+                          'Paused',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontSize: 28.0,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Resumes in ${_getRelativeTime(_pausedUntil)}',
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            fontSize: 16.0,
+                            fontWeight: FontWeight.w400,
+                            color: Colors.white70,
+                          ),
+                        ),
+                      ],
+                    )
+                  : Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        SvgPicture.asset(
+                          'assets/icons/landing_logo.svg',
+                          height: 70,
+                          colorFilter: const ColorFilter.mode(
+                            Color(0xFF1F4ED8),
+                            BlendMode.srcIn,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        const Text(
+                          'I am Okay',
+                          style: TextStyle(
+                            fontSize: 22.0,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF1F4ED8),
+                          ),
+                        ),
+                      ],
+                    ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHeader() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(24, 24, 24, 48),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (_userName != null && _userName!.isNotEmpty)
+            Text(
+              'Hi, $_userName${_userAlias != null && _userAlias!.isNotEmpty ? ' ($_userAlias)' : ''}',
+              style: const TextStyle(
+                fontSize: 26.0,
+                fontWeight: FontWeight.w600,
+                color: Color(0xFF333333),
+              ),
+            ),
+          const SizedBox(height: 4),
+          const Text(
+            'How are you feeling today?',
+            style: TextStyle(
+              fontSize: 18.0,
+              fontWeight: FontWeight.w400,
+              color: Color(0xFF666666),
+            ),
+          ),
+          const SizedBox(height: 24),
+          if (_reminderTime != null)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.grey.shade200),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.notifications_active, color: Color(0xFF1F4ED8), size: 20),
+                  const SizedBox(width: 12),
+                  Flexible(
+                    child: RichText(
                       text: TextSpan(
                         style: const TextStyle(
-                          fontSize: 18.0,
+                          fontSize: 16.0,
                           fontWeight: FontWeight.w400,
                           color: Color(0xFF333333),
                         ),
                         children: [
-                          const TextSpan(text: "We'll remind you daily at "),
+                          const TextSpan(text: "Daily check-in at "),
                           TextSpan(
                             text: _reminderTime,
                             style: const TextStyle(
-                              fontSize: 20.0,
                               fontWeight: FontWeight.bold,
                               color: Color(0xFF1F4ED8),
                             ),
                           ),
                         ],
                       ),
-                    )
-                  : const Text(
-                      'We are here to support you. Let us know you are okay.',
-                      style: TextStyle(
-                        fontSize: 18.0,
-                        fontWeight: FontWeight.w400,
-                        color: Color(0xFF333333),
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-            ),
-            const SizedBox(height: 48),
-            // Pulsing Button or Paused Button
-            GestureDetector(
-              onTap: _isPaused ? _showResumeConfirmDialog : _handleCheckIn,
-              child: Stack(
-                alignment: Alignment.center,
-                children: [
-                  // Continuous Ripples (only if not paused)
-                  if (!_isPaused)
-                    ...List.generate(3, (index) {
-                      return AnimatedBuilder(
-                        animation: _controller,
-                        builder: (context, child) {
-                          final double offset = index / 3.0;
-                          final double value =
-                              (_controller.value + offset) % 1.0;
-                          return Transform.scale(
-                            scale: 1.0 + (value * 0.5), // Expand to 1.5x
-                            child: Container(
-                              width: 200, // Start at button size
-                              height: 200,
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                color: const Color(0xFF1F4ED8)
-                                    .withValues(alpha: 0.3 * (1 - value)),
-                              ),
-                            ),
-                          );
-                        },
-                      );
-                    }),
-                  // Main Button
-                  Container(
-                    width: 200,
-                    height: 200,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: _isPaused ? Colors.grey : Colors.white, // Deep Blue or Grey
-                      border: _isPaused
-                          ? null
-                          : Border.all(
-                              color: const Color(0xFF1F4ED8),
-                              width: 1.0,
-                            ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: (_isPaused ? Colors.grey : const Color(0xFF1F4ED8))
-                              .withValues(alpha: 0.5),
-                          blurRadius: 20,
-                          spreadRadius: 5,
-                        ),
-                      ],
-                    ),
-                    child: Center(
-                      child: _isPaused
-                          ? Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                const Text(
-                                  'Paused',
-                                  textAlign: TextAlign.center,
-                                  style: TextStyle(
-                                    fontSize: 32.0,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.white,
-                                  ),
-                                ),
-                                const SizedBox(height: 8),
-                                const Text(
-                                  'will unpause in',
-                                  textAlign: TextAlign.center,
-                                  style: TextStyle(
-                                    fontSize: 16.0,
-                                    fontWeight: FontWeight.w400,
-                                    color: Colors.white70,
-                                  ),
-                                ),
-                                Text(
-                                  _getRelativeTime(_pausedUntil),
-                                  textAlign: TextAlign.center,
-                                  style: const TextStyle(
-                                    fontSize: 18.0,
-                                    fontWeight: FontWeight.w500,
-                                    color: Colors.white,
-                                  ),
-                                ),
-                              ],
-                            )
-                          : Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                SvgPicture.asset(
-                                  'assets/icons/landing_logo.svg',
-                                  height: 80,
-                                  colorFilter: const ColorFilter.mode(
-                                    Color(0xFF1F4ED8),
-                                    BlendMode.srcIn,
-                                  ),
-                                ),
-                                const SizedBox(height: 8),
-                                const Text(
-                                  'I am Okay',
-                                  style: TextStyle(
-                                    fontSize: 20.0,
-                                    fontWeight: FontWeight.bold,
-                                    color: Color(0xFF1F4ED8),
-                                  ),
-                                ),
-                              ],
-                            ),
                     ),
                   ),
                 ],
               ),
-            ),
-            const SizedBox(height: 60),
-            // Pause/Resume Reminder Link
-            GestureDetector(
-              onTap: _isPaused
-                  ? () => _updateReminderStatus(false, null)
-                  : _showPauseReminderOptions,
-              child: Text(
-                _isPaused ? 'Resume Reminder' : 'Pause Reminder',
-                style: const TextStyle(
-                  fontSize: 18.0,
-                  fontWeight: FontWeight.w500,
-                  color: Color(0xFF1F4ED8), // Link color
-                  decoration: TextDecoration.underline,
-                ),
-              ),
-            ),
-            const SizedBox(height: 24),
-            // Update Reminder Time Link
+            )
+          else
             GestureDetector(
               onTap: () {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (context) => const DailyReminderScreen(),
-                  ),
+                      builder: (context) => const DailyReminderScreen()),
                 );
               },
-              child: const Text(
-                'Update Daily Reminder Time',
-                style: TextStyle(
-                  fontSize: 18.0,
-                  fontWeight: FontWeight.w500,
-                  color: Color(0xFF1F4ED8), // Link color
-                  decoration: TextDecoration.underline,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF1F4ED8)
+                    .withAlpha((255 * 0.1).toInt()),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                        color: const Color(0xFF1F4ED8)
+                            .withAlpha((255 * 0.3).toInt())),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.add_alert, color: Color(0xFF1F4ED8), size: 20),
+                    const SizedBox(width: 12),
+                    const Flexible(
+                      child: Text(
+                        'Set a Daily Reminder',
+                        style: TextStyle(
+                          fontSize: 16.0,
+                          fontWeight: FontWeight.w500,
+                          color: Color(0xFF1F4ED8),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),
-            const SizedBox(height: 40),
+        ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFFF9F9F9),
+      body: SafeArea(
+        child: Column(
+          children: [
+            _buildHeader(),
+            Expanded(
+              child: Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    // Pulsing Button or Paused Button
+                    _buildMainActionButton(),
+                    const SizedBox(height: 60),
+                    // Pause/Resume button
+                    _buildPauseResumeButton(),
+                  ],
+                ),
+              ),
+            ),
           ],
         ),
       ),

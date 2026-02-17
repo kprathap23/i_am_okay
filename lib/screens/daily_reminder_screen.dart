@@ -7,7 +7,12 @@ import '../services/notification_service.dart';
 import 'permission_screen.dart';
 
 class DailyReminderScreen extends StatefulWidget {
-  const DailyReminderScreen({super.key});
+  final bool isOnboarding;
+
+  const DailyReminderScreen({
+    super.key,
+    this.isOnboarding = true,
+  });
 
   @override
   State<DailyReminderScreen> createState() => _DailyReminderScreenState();
@@ -88,11 +93,21 @@ class _DailyReminderScreenState extends State<DailyReminderScreen> {
 
       if (mounted) {
         LoadingOverlay.hide(context);
-        Navigator.pushAndRemoveUntil(
-          context,
-          MaterialPageRoute(builder: (context) => const PermissionScreen()),
-          (route) => false,
-        );
+        if (widget.isOnboarding) {
+          Navigator.pushAndRemoveUntil(
+            context,
+            MaterialPageRoute(builder: (context) => const PermissionScreen()),
+            (route) => false,
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Reminder time updated successfully!'),
+              backgroundColor: Colors.green,
+            ),
+          );
+          Navigator.of(context).pop();
+        }
       }
     } catch (e) {
       debugPrint("hello error$e");
@@ -204,7 +219,7 @@ class _DailyReminderScreenState extends State<DailyReminderScreen> {
               ),
               const Spacer(),
               CustomButton(
-                text: 'Set Reminder',
+                text: widget.isOnboarding ? 'Set Reminder' : 'Update Reminder',
                 onPressed: _handleSetReminder,
               ),
                     const SizedBox(height: 24),

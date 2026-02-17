@@ -5,6 +5,9 @@ import '../services/graphql_service.dart';
 import '../services/notification_service.dart';
 import '../models/user_model.dart';
 import 'landing_screen.dart';
+import 'about_us_screen.dart';
+import 'daily_reminder_screen.dart';
+import 'support_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -26,31 +29,43 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> _fetchUser() async {
-    try {
-      final userId = await _storage.read(key: 'user_id');
-      if (userId == null) {
-        if (mounted) {
-          setState(() {
-            _isLoading = false;
-            _errorMessage = "User not found locally. Please login again.";
-          });
-        }
-        return;
-      }
+    // Immediately try to get local data to build a basic UI
+    final userId = await _storage.read(key: 'user_id');
+    final mobileNumber = await _storage.read(key: 'mobile_number');
 
+    if (userId == null) {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _errorMessage = "User not found locally. Please login again.";
+        });
+      }
+      return;
+    }
+
+    // Build a minimal user object for offline display
+    if (mounted) {
+      setState(() {
+        _user = User(id: userId, mobileNumber: mobileNumber ?? '');
+        _isLoading = false; // We have enough to show a basic profile
+      });
+    }
+
+    // Now, try to fetch the full profile from the network
+    try {
       final user = await GraphQLService.getUser(userId);
       if (mounted) {
         setState(() {
-          _user = user;
-          _isLoading = false;
+          _user = user; // Update with full profile data
         });
       }
     } catch (e) {
+      // Non-blocking error. The user can still see their basic profile and log out.
+      // Optionally, show a snackbar or a small message.
+      debugPrint("Failed to fetch full profile: $e");
       if (mounted) {
-        setState(() {
-          _errorMessage = 'Something went wrong. Please try again.';
-          _isLoading = false;
-        });
+        // You could set a different state here to show a small warning icon
+        // e.g., setState(() { _isOffline = true; });
       }
     }
   }
@@ -100,102 +115,204 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
 
     if (_user == null) {
-      return const Center(child: Text("Failed to load profile"));
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Text("Failed to load profile. You may be offline."),
+            const SizedBox(height: 24),
+            CustomButton(
+              text: 'Log Out',
+              onPressed: _logout,
+              backgroundColor: Colors.red,
+            ),
+          ],
+        ),
+      );
     }
 
+    return ListView(
+      padding: const EdgeInsets.symmetric(vertical: 20),
+      children: [
+        _buildProfileHeader(),
+        const SizedBox(height: 20),
+        _buildSectionTitle("User Information"),
+        _buildInfoCard(),
+        const SizedBox(height: 20),
+        _buildSectionTitle("Settings"),
+        _buildSettingsCard(),
+        const SizedBox(height: 20),
+        _buildSectionTitle("Actions"),
+        _buildActionsCard(),
+      ],
+    );
+  }
+
+  Widget _buildProfileHeader() {
     final fullName =
         "${_user?.name?.firstName ?? ''} ${_user?.name?.lastName ?? ''}".trim();
     final displayName = fullName.isNotEmpty ? fullName : "User";
 
-    return Padding(
-      padding: const EdgeInsets.all(24.0),
-      child: Column(
-        children: [
-          const CircleAvatar(
+    return Column(
+      children: [
+        Center(
+          child: CircleAvatar(
             radius: 50,
-            backgroundColor: Color(0xFF1F4ED8),
-            child: Icon(
+            backgroundColor: const Color(0xFF1F4ED8).withAlpha((255 * 0.1).toInt()),
+            child: const Icon(
               Icons.person,
               size: 60,
-              color: Colors.white,
+              color: Color(0xFF1F4ED8),
             ),
           ),
-          const SizedBox(height: 16),
-          Text(
-            displayName,
-            style: const TextStyle(
-              fontSize: 24.0,
-              fontWeight: FontWeight.w600,
-            ),
+        ),
+        const SizedBox(height: 16),
+        Text(
+          displayName,
+          style: const TextStyle(
+            fontSize: 24.0,
+            fontWeight: FontWeight.bold,
+            color: Color(0xFF333333),
           ),
-          const SizedBox(height: 8),
-          Text(
-            _formatPhoneNumber(_user?.mobileNumber ?? ''),
-            style: const TextStyle(
-              fontSize: 18.0,
-              color: Color(0xFF333333),
-            ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          _formatPhoneNumber(_user?.mobileNumber ?? ''),
+          style: const TextStyle(
+            fontSize: 18.0,
+            color: Color(0xFF666666),
           ),
-          if (_user?.email != null && _user!.email!.isNotEmpty) ...[
-            const SizedBox(height: 8),
-            Text(
-              _user!.email!,
-              style: const TextStyle(
-                fontSize: 16.0,
-                color: Color(0xFF666666),
-              ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSectionTitle(String title) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 8.0),
+      child: Text(
+        title,
+        style: const TextStyle(
+          fontSize: 16,
+          fontWeight: FontWeight.bold,
+          color: Colors.grey,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildInfoCard() {
+    final addr = _user?.address;
+    final addressParts = addr != null ? [
+      addr.address1,
+      addr.address2,
+      addr.city,
+      addr.state,
+      addr.zipCode
+    ] : [];
+    
+    final addressStr = addressParts
+        .where((s) => s != null && s.isNotEmpty)
+        .join(", ");
+
+    return Card(
+      margin: const EdgeInsets.symmetric(horizontal: 24.0),
+      elevation: 2,
+      shadowColor: Colors.black12,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Column(
+        children: [
+          if (_user?.email != null && _user!.email!.isNotEmpty)
+            _buildProfileOption(
+              icon: Icons.email_outlined,
+              title: "Email",
+              subtitle: _user!.email!,
             ),
-          ],
-          const SizedBox(height: 24),
-          _buildInfoCard(),
-          const Spacer(),
-          CustomButton(
-            text: 'Log Out',
-            onPressed: _logout,
-            backgroundColor: Colors.red,
+          if (addressStr.isNotEmpty)
+             _buildProfileOption(
+              icon: Icons.location_on_outlined,
+              title: "Address",
+              subtitle: addressStr,
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSettingsCard() {
+    return Card(
+      margin: const EdgeInsets.symmetric(horizontal: 24.0),
+      elevation: 2,
+      shadowColor: Colors.black12,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Column(
+        children: [
+          _buildProfileOption(
+            icon: Icons.timer_outlined,
+            title: "Daily Reminder",
+            onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                    builder: (_) =>
+                        const DailyReminderScreen(isOnboarding: false))),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildInfoCard() {
-    if (_user?.address == null) return const SizedBox.shrink();
-
-    final addr = _user!.address!;
-    final addressParts = [
-      addr.address1,
-      addr.address2,
-      addr.city,
-      addr.state,
-      addr.zipCode
-    ];
-    
-    final addressStr = addressParts
-        .where((s) => s != null && s.isNotEmpty)
-        .join(", ");
-
-    if (addressStr.isEmpty) return const SizedBox.shrink();
-
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.grey[100],
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
+  Widget _buildActionsCard() {
+    return Card(
+      margin: const EdgeInsets.symmetric(horizontal: 24.0),
+      elevation: 2,
+      shadowColor: Colors.black12,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Column(
         children: [
-          const Icon(Icons.location_on, color: Color(0xFF1F4ED8)),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Text(
-              addressStr,
-              style: const TextStyle(fontSize: 16, height: 1.4),
-            ),
+          _buildProfileOption(
+            icon: Icons.info_outline,
+            title: "About Us",
+            onTap: () => Navigator.push(context,
+                MaterialPageRoute(builder: (_) => const AboutUsScreen())),
+          ),
+          const Divider(height: 1, indent: 16, endIndent: 16),
+          _buildProfileOption(
+            icon: Icons.support_agent,
+            title: "Support",
+            onTap: () => Navigator.push(context,
+                MaterialPageRoute(builder: (_) => const SupportScreen())),
+          ),
+          const Divider(height: 1, indent: 16, endIndent: 16),
+          _buildProfileOption(
+            icon: Icons.logout,
+            title: "Log Out",
+            onTap: _logout,
+            textColor: Colors.red,
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildProfileOption({
+    required IconData icon,
+    required String title,
+    String? subtitle,
+    VoidCallback? onTap,
+    Color? textColor,
+  }) {
+    return ListTile(
+      onTap: onTap,
+      leading: Icon(icon, color: textColor ?? const Color(0xFF1F4ED8)),
+      title: Text(
+        title,
+        style: TextStyle(
+          fontWeight: FontWeight.w600,
+          color: textColor,
+        ),
+      ),
+      subtitle: subtitle != null ? Text(subtitle, style: const TextStyle(color: Color(0xFF666666))) : null,
+      trailing: onTap != null ? const Icon(Icons.arrow_forward_ios, size: 16) : null,
     );
   }
 

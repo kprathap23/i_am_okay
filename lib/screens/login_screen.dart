@@ -45,7 +45,13 @@ class _LoginScreenState extends State<LoginScreen> {
   Future<void> _checkBiometricLoginAvailable() async {
     final isHardwareAvailable = await BiometricService.isBiometricAvailable();
     final token = await _storage.read(key: 'auth_token');
-    
+    final biometricEnabled = await _storage.read(key: 'biometric_enabled') == 'true';
+
+    if (!biometricEnabled) {
+      if (mounted) setState(() => _canUseBiometric = false);
+      return;
+    }
+
     // If mobile number is not provided, try to fetch from storage
     if (_mobileController.text.isEmpty) {
       final storedMobile = await _storage.read(key: 'mobile_number');

@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'dart:io';
 import '../widgets/custom_button.dart';
+import 'biometric_setup_screen.dart';
 import 'home_screen.dart';
 
 class PermissionScreen extends StatefulWidget {
@@ -16,6 +18,10 @@ class _PermissionScreenState extends State<PermissionScreen> with WidgetsBinding
   bool _notificationGranted = false;
   bool _locationGranted = false;
   bool _exactAlarmGranted = false;
+
+  bool get _allRequiredPermissionsGranted {
+    return _notificationGranted && (!Platform.isAndroid || _exactAlarmGranted);
+  }
 
   @override
   void initState() {
@@ -51,8 +57,8 @@ class _PermissionScreenState extends State<PermissionScreen> with WidgetsBinding
         _exactAlarmGranted = exactAlarmStatus.isGranted;
       });
 
-      if (_notificationGranted && _locationGranted && _exactAlarmGranted) {
-        _navigateToHome();
+      if (_allRequiredPermissionsGranted) {
+        _navigateToNext();
       }
     }
   }
@@ -85,11 +91,23 @@ class _PermissionScreenState extends State<PermissionScreen> with WidgetsBinding
     await _checkPermissions();
   }
 
-  void _navigateToHome() {
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(builder: (context) => const HomeScreen()),
-    );
+  Future<void> _navigateToNext() async {
+    const storage = FlutterSecureStorage();
+    final biometricEnabled = await storage.read(key: 'biometric_enabled');
+
+    if (!mounted) return;
+
+    if (biometricEnabled != null) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => const HomeScreen()),
+      );
+    } else {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => const BiometricSetupScreen()),
+      );
+    }
   }
 
   @override
@@ -146,7 +164,7 @@ class _PermissionScreenState extends State<PermissionScreen> with WidgetsBinding
               // Location Permission Item
               _buildPermissionItem(
                 icon: Icons.location_on_outlined,
-                title: 'Location',
+                title: 'Location (Optional)',
                 description: 'To include your current location in emergency alerts sent to your contacts.',
                 isGranted: _locationGranted,
               ),
@@ -164,7 +182,7 @@ class _PermissionScreenState extends State<PermissionScreen> with WidgetsBinding
 
               const Spacer(),
 
-              if (!_notificationGranted || !_locationGranted || (Platform.isAndroid && !_exactAlarmGranted))
+              if (!_allRequiredPermissionsGranted)
                 CustomButton(
                   text: 'Grant Permissions',
                   onPressed: _requestPermissions,
@@ -174,20 +192,20 @@ class _PermissionScreenState extends State<PermissionScreen> with WidgetsBinding
               
               CustomButton(
                 text: 'Continue',
-                backgroundColor: (_notificationGranted && _locationGranted && (!Platform.isAndroid || _exactAlarmGranted)) 
+                backgroundColor: _allRequiredPermissionsGranted 
                     ? const Color(0xFF1F4ED8) 
                     : const Color(0xFFE0E0E0),
-                textColor: (_notificationGranted && _locationGranted && (!Platform.isAndroid || _exactAlarmGranted)) 
+                textColor: _allRequiredPermissionsGranted 
                     ? Colors.white 
                     : const Color(0xFF999999),
                 onPressed: () {
-                  if (_notificationGranted && _locationGranted && (!Platform.isAndroid || _exactAlarmGranted)) {
-                    _navigateToHome();
+                  if (_allRequiredPermissionsGranted) {
+                    _navigateToNext();
                   } else {
                     // Optional: Allow user to skip or prompt again
                      ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
-                        content: Text('Please grant permissions to continue.'),
+                        content: Text('Please grant required permissions to continue.'),
                         duration: Duration(seconds: 2),
                       ),
                     );

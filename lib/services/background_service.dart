@@ -19,21 +19,22 @@ void callbackDispatcher() {
           
           // 1. Get Location
           String locationString = "Unknown";
-          try {
-            // Check permissions - assume they are granted as this is a background task 
-            // and we should have asked for "Always" or "WhileInUse" before.
-            // Note: Background location access might require "Always" permission on iOS/Android 10+
-            // For now, we try to get the current position.
-            final position = await Geolocator.getCurrentPosition(
-              locationSettings: const LocationSettings(
-                accuracy: LocationAccuracy.high,
-                timeLimit: Duration(seconds: 10),
-              ),
-            );
-            locationString = "${position.latitude},${position.longitude}";
-          } catch (e) {
-            debugPrint("Error getting location in background: $e");
-            // Fallback or send "Unknown"
+          final permission = await Geolocator.checkPermission();
+          if (permission == LocationPermission.always || permission == LocationPermission.whileInUse) {
+            try {
+              final position = await Geolocator.getCurrentPosition(
+                locationSettings: const LocationSettings(
+                  accuracy: LocationAccuracy.high,
+                  timeLimit: Duration(seconds: 10),
+                ),
+              );
+              locationString = "${position.latitude},${position.longitude}";
+            } catch (e) {
+              debugPrint("Error getting location in background: $e");
+              // Fallback or send "Unknown"
+            }
+          } else {
+              debugPrint("Location permission not granted for background task.");
           }
 
           // 2. Setup GraphQL Client
