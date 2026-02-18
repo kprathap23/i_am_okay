@@ -1,19 +1,22 @@
 import 'package:flutter/material.dart';
+import 'bottom_nav_item.dart';
 
 class CustomBottomNavbar extends StatelessWidget {
   final int currentIndex;
   final Function(int) onTap;
+  final List<BottomNavItem> items;
 
   const CustomBottomNavbar({
     super.key,
     required this.currentIndex,
     required this.onTap,
+    required this.items,
   });
 
   @override
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
-    const itemCount = 4;
+    final itemCount = items.length;
     final itemWidth = screenWidth / itemCount;
     final indicatorWidth = itemWidth * 0.6;
     final horizontalPadding = (itemWidth - indicatorWidth) / 2;
@@ -50,12 +53,10 @@ class CustomBottomNavbar extends StatelessWidget {
           // Icons and Labels
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: [
-              _buildNavItem(Icons.home, 'Home', 0, itemWidth),
-              _buildNavItem(Icons.history, 'History', 1, itemWidth),
-              _buildNavItem(Icons.contact_phone, 'Contacts', 2, itemWidth),
-              _buildNavItem(Icons.person, 'Profile', 3, itemWidth),
-            ],
+            children: List.generate(items.length, (index) {
+              final item = items[index];
+              return _buildNavItem(item.icon, item.label, index, itemWidth);
+            }),
           ),
         ],
       ),

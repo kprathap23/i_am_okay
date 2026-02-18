@@ -98,9 +98,9 @@ class BackgroundService {
     // Cancel any existing tasks
     await cancelEmergencySms();
 
-    debugPrint("Scheduling emergency SMS sequence for 30 days starting from $startDate");
+    debugPrint("Scheduling emergency SMS sequence for 15 days starting from $startDate");
 
-    for (int i = 0; i < 30; i++) {
+    for (int i = 0; i < 15; i++) {
       final emergencyTime = startDate.add(Duration(days: i)).add(const Duration(minutes: AppConfig.emergencySmsDelayMinutes));
       final delay = emergencyTime.difference(DateTime.now());
 

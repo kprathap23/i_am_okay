@@ -98,21 +98,28 @@ class NotificationService {
       scheduledDate = scheduledDate.add(const Duration(days: 1));
     }
 
+    await scheduleDailyNotificationFromDate(scheduledDate);
+  }
+
+  Future<void> scheduleDailyNotificationFromDate(tz.TZDateTime startDate) async {
+    // Always cancel existing notifications to ensure we don't have duplicates or stale times
+    await cancelAllNotifications();
+
     // Schedule main notifications
-    await _scheduleNotifications(scheduledDate, 0, 'daily_checkin', 'Daily Check-in', 'Time to check in! Are you okay?');
+    await _scheduleNotifications(startDate, 0, 'daily_checkin', 'Daily Check-in', 'Time to check in! Are you okay?');
     
     // Schedule follow-up reminders
-    final reminderDate = scheduledDate.add(const Duration(minutes: AppConfig.followUpReminderDelayMinutes));
+    final reminderDate = startDate.add(const Duration(minutes: AppConfig.followUpReminderDelayMinutes));
     await _scheduleNotifications(reminderDate, 100, 'checkin_reminder', 'Check-in Reminder', 'You haven\'t checked in yet. Is everything okay?');
 
     // Schedule Emergency SMS Task Sequence (starting from the first scheduled date)
-    // The background service will handle the 30-day loop logic.
-    await BackgroundService().scheduleEmergencySmsSequence(scheduledDate);
+    // The background service will handle the 15-day loop logic.
+    await BackgroundService().scheduleEmergencySmsSequence(startDate);
   }
 
   Future<void> _scheduleNotifications(tz.TZDateTime startDate, int startId, String type, String title, String body) async {
     try {
-      for (int i = 0; i < 30; i++) {
+      for (int i = 0; i < 15; i++) {
         final tz.TZDateTime notificationDate = startDate.add(Duration(days: i));
 
         final payload = jsonEncode({
@@ -154,7 +161,7 @@ class NotificationService {
   Future<void> completeDailyCheckIn(TimeOfDay checkInTime) async {
     // 1. Cancel all reminder notifications (100-129)
     // We don't cancel main notifications (0-29) because we want them to keep firing daily.
-    for (int i = 0; i < 30; i++) {
+    for (int i = 0; i < 15; i++) {
       await flutterLocalNotificationsPlugin.cancel(id: 100 + i);
     }
     // Cancel any pending emergency SMS task since user checked in

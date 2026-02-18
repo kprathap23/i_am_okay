@@ -2,14 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:timezone/timezone.dart' as tz;
 import '../services/graphql_service.dart';
 import '../services/notification_service.dart';
 import '../widgets/loading_overlay.dart';
 import 'emergency_contact_screen.dart';
 import 'daily_reminder_screen.dart';
 import '../widgets/custom_bottom_navbar.dart';
+import '../widgets/bottom_nav_item.dart';
 import 'history_screen.dart';
-import 'profile_screen.dart';
+import 'settings_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -20,15 +22,48 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   int _currentIndex = 0;
+  String? _userRole;
+  String? _userId;
 
-  final List<Widget> _screens = [
-    const HomeContent(),
-    const HistoryScreen(),
-    const EmergencyContactScreen(isOnboarding: false),
-    const ProfileScreen(),
-  ];
+  @override
+  void initState() {
+    super.initState();
+    _initUser();
+  }
+
+  Future<void> _initUser() async {
+    const storage = FlutterSecureStorage();
+    _userRole = await storage.read(key: 'user_role');
+    _userId = await storage.read(key: 'user_id');
+    setState(() {});
+  }
+
+  List<Widget> get _screens {
+    if (_userRole == 'contact') {
+      return [
+        HistoryScreen(contactId: _userId),
+        const SettingsScreen(),
+      ];
+    }
+    return [
+      const HomeContent(),
+      const HistoryScreen(),
+      const EmergencyContactScreen(isOnboarding: false),
+      const SettingsScreen(),
+    ];
+  }
 
   String get _currentTitle {
+    if (_userRole == 'contact') {
+      switch (_currentIndex) {
+        case 0:
+          return 'History';
+        case 1:
+          return 'Settings';
+        default:
+          return 'History';
+      }
+    }
     switch (_currentIndex) {
       case 0:
         return 'Home';
@@ -37,7 +72,7 @@ class _HomeScreenState extends State<HomeScreen> {
       case 2:
         return 'Emergency Contacts';
       case 3:
-        return 'Profile';
+        return 'Settings';
       default:
         return 'Home';
     }
@@ -45,6 +80,19 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+
+    final List<BottomNavItem> navItems = _userRole == 'contact'
+        ? [
+            BottomNavItem(icon: Icons.history, label: 'History'),
+            BottomNavItem(icon: Icons.settings, label: 'Settings'),
+          ]
+        : [
+            BottomNavItem(icon: Icons.home, label: 'Home'),
+            BottomNavItem(icon: Icons.history, label: 'History'),
+            BottomNavItem(icon: Icons.contact_phone, label: 'Contacts'),
+            BottomNavItem(icon: Icons.settings, label: 'Settings'),
+          ];
+
     return Scaffold(
       appBar: AppBar(
         backgroundColor: const Color(0xFF1F4ED8),
@@ -61,6 +109,7 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
       body: _screens[_currentIndex],
       bottomNavigationBar: CustomBottomNavbar(
+        items: navItems,
         currentIndex: _currentIndex,
         onTap: (index) {
           setState(() {
@@ -339,15 +388,46 @@ class _HomeContentState extends State<HomeContent>
           _isPaused = isPaused;
           _pausedUntil = pausedUntil;
         });
-        
+
+        // Handle notification rescheduling
+        if (isPaused) {
+          if (pausedUntil != null && _checkInTimeOfDay != null) {
+            final localPausedUntil = pausedUntil.toLocal();
+            var scheduledDate = tz.TZDateTime(
+              tz.local,
+              localPausedUntil.year,
+              localPausedUntil.month,
+              localPausedUntil.day,
+              _checkInTimeOfDay!.hour,
+              _checkInTimeOfDay!.minute,
+            );
+
+            // if pausedUntil hour and minute (converted to local timezone) is more than the check-in time then schedule it to next day.
+            if (localPausedUntil.hour > _checkInTimeOfDay!.hour ||
+                (localPausedUntil.hour == _checkInTimeOfDay!.hour &&
+                    localPausedUntil.minute > _checkInTimeOfDay!.minute)) {
+              scheduledDate = scheduledDate.add(const Duration(days: 1));
+            }
+            NotificationService().scheduleDailyNotificationFromDate(scheduledDate);
+          } else {
+            // If we can't reschedule, at least cancel everything.
+            NotificationService().cancelAllNotifications();
+          }
+        } else {
+          // Resuming
+          if (_checkInTimeOfDay != null) {
+            NotificationService().scheduleDailyNotification(_checkInTimeOfDay!);
+          }
+        }
+
         String message;
         if (isPaused) {
-           final dateStr = pausedUntil?.toString().split(' ')[0] ?? '';
-           message = 'Reminder paused until $dateStr';
+          final dateStr = pausedUntil?.toString().split(' ')[0] ?? '';
+          message = 'Reminder paused until $dateStr';
         } else {
-           message = 'Reminder resumed';
+          message = 'Reminder resumed';
         }
-        
+
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(message)),
         );

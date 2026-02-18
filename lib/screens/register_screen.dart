@@ -152,21 +152,34 @@ class _RegisterScreenState extends State<RegisterScreen> {
       };
 
       // 4. Request OTP
-      await GraphQLService.requestOtp(mobile, isRegister: true);
+      final otpResult = await GraphQLService.requestOtp(mobile, isRegister: true);
 
       if (mounted) {
         LoadingOverlay.hide(context);
-        // 5. Navigate
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => OtpScreen(
-              isRegistration: true,
-              mobileNumber: mobile,
-              userData: input,
+
+        if (otpResult != null) {
+          final role = otpResult;
+
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => OtpScreen(
+                isRegistration: true,
+                mobileNumber: mobile,
+                userData: input,
+                role: role,
+              ),
             ),
-          ),
-        );
+          );
+        } else {
+          // Handle case where OTP request fails
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Failed to send OTP. Please try again.'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
       }
     } catch (e) {
       if (mounted) {

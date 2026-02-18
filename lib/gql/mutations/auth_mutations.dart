@@ -7,8 +7,7 @@ const String requestOtpMutation = """
 """;
 
 const String verifyOtpMutation = """
-  mutation VerifyOTP(\$mobile: String!, \$otp: String!, \$userDetails: UserInsertInput) {
-    verifyOtp(mobileNumber: \$mobile, code: \$otp, userDetails: \$userDetails) {
+  mutation VerifyOTP(\$mobile: String!, \$otp: String!, \$userDetails: UserInsertInput, \$isEmergencyContact: Boolean) {\n    verifyOtp(mobileNumber: \$mobile, code: \$otp, userDetails: \$userDetails, isEmergencyContact: \$isEmergencyContact) {
       token
       user {
         ...UserFields

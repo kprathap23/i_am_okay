@@ -74,7 +74,7 @@ class GraphQLService {
     return result.data?['requestOtp'] as String?;
   }
 
-  static Future<AuthPayload> verifyOtp(String mobile, String otp, {Map<String, dynamic>? userDetails}) async {
+  static Future<AuthPayload> verifyOtp(String mobile, String otp, {Map<String, dynamic>? userDetails, bool isEmergencyContact = false}) async {
     final client = await getClient();
     final result = await client.mutate(
       MutationOptions(
@@ -83,6 +83,7 @@ class GraphQLService {
           'mobile': mobile,
           'otp': otp,
           'userDetails': userDetails,
+          'isEmergencyContact': isEmergencyContact,
         },
       ),
     );
@@ -241,6 +242,12 @@ class GraphQLService {
     return data?.map((e) => CheckIn.fromJson(e as Map<String, dynamic>)).toList() ?? [];
   }
 
+  static Future<List<CheckIn>> getCheckInsByContactId(String contactId) async {
+    return getCheckIns(where: {
+      'userId': {'eq': contactId}
+    });
+  }
+
   // CheckIn Mutations
   static Future<CheckIn> createCheckIn(Map<String, dynamic> input) async {
     final client = await getClient();
@@ -293,4 +300,5 @@ class GraphQLService {
 
     return result.data?['deleteCheckIn'] as bool;
   }
+
 }

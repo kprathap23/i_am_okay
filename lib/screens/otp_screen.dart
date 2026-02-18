@@ -6,6 +6,7 @@ import '../widgets/custom_text_field.dart';
 import '../widgets/loading_overlay.dart';
 import '../services/graphql_service.dart';
 import 'emergency_contact_screen.dart';
+import 'emergency_contact_dashboard.dart';
 import 'daily_reminder_screen.dart';
 import 'permission_screen.dart';
 
@@ -13,12 +14,14 @@ class OtpScreen extends StatefulWidget {
   final bool isRegistration;
   final String? mobileNumber;
   final Map<String, dynamic>? userData;
+  final String? role;
 
   const OtpScreen({
     super.key,
     this.isRegistration = false,
     this.mobileNumber,
     this.userData,
+    this.role,
   });
 
   @override
@@ -112,6 +115,7 @@ class _OtpScreenState extends State<OtpScreen> {
         userDetails: widget.isRegistration && widget.userData != null
             ? Map<String, dynamic>.from(widget.userData!)
             : null,
+        isEmergencyContact: widget.role == 'contact',
       );
 
       final token = authPayload.token;
@@ -125,9 +129,22 @@ class _OtpScreenState extends State<OtpScreen> {
       if (user != null) {
         await _storage.write(key: 'user_id', value: user.id);
       }
+      if (widget.role != null) {
+        await _storage.write(key: 'user_role', value: widget.role);
+      }
 
       if (mounted) {
         LoadingOverlay.hide(context);
+
+        if (widget.role == 'contact') {
+          Navigator.pushAndRemoveUntil(
+            context,
+            MaterialPageRoute(
+                builder: (context) => const EmergencyContactDashboard()),
+            (route) => false,
+          );
+          return;
+        }
 
         // Check for missing data in sequence
         bool hasEmergencyContacts = user?.emergencyContacts.isNotEmpty ?? false;

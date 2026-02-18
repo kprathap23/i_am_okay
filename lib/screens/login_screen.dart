@@ -102,19 +102,28 @@ class _LoginScreenState extends State<LoginScreen> {
     LoadingOverlay.show(context);
 
     try {
-      await GraphQLService.requestOtp(mobile);
+      final otpResult = await GraphQLService.requestOtp(mobile);
 
       if (mounted) {
         LoadingOverlay.hide(context);
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => OtpScreen(
-              isRegistration: false,
-              mobileNumber: mobile,
+
+        if (otpResult != null) {
+          final role = otpResult;
+          // TODO: store role somewhere?
+
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => OtpScreen(
+                isRegistration: false,
+                mobileNumber: mobile,
+                role: role,
+              ),
             ),
-          ),
-        );
+          );
+        } else {
+          _showAccountNotFoundDialog();
+        }
       }
     } catch (e) {
       if (mounted) {

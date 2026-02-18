@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../models/checkin_model.dart';
 import '../services/graphql_service.dart';
 
 class HistoryScreen extends StatefulWidget {
-  const HistoryScreen({super.key});
+  final String? contactId;
+  const HistoryScreen({super.key, this.contactId});
 
   @override
   State<HistoryScreen> createState() => _HistoryScreenState();
@@ -24,7 +26,23 @@ class _HistoryScreenState extends State<HistoryScreen> {
 
   Future<void> _fetchCheckIns() async {
     try {
-      final checkIns = await GraphQLService.getCheckIns();
+      String? userId = widget.contactId;
+      if (userId == null) {
+        const storage = FlutterSecureStorage();
+        userId = await storage.read(key: 'user_id');
+      }
+
+      if (userId == null) {
+        if (mounted) {
+          setState(() {
+            _errorMessage = 'User not identified. Please log in again.';
+            _isLoading = false;
+          });
+        }
+        return;
+      }
+
+      final checkIns = await GraphQLService.getCheckInsByContactId(userId);
       if (mounted) {
         setState(() {
           _checkIns = checkIns;

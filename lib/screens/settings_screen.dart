@@ -7,16 +7,17 @@ import '../models/user_model.dart';
 import 'landing_screen.dart';
 import 'about_us_screen.dart';
 import 'daily_reminder_screen.dart';
+import 'edit_profile_screen.dart';
 import 'support_screen.dart';
 
-class ProfileScreen extends StatefulWidget {
-  const ProfileScreen({super.key});
+class SettingsScreen extends StatefulWidget {
+  const SettingsScreen({super.key});
 
   @override
-  State<ProfileScreen> createState() => _ProfileScreenState();
+  State<SettingsScreen> createState() => _SettingsScreenState();
 }
 
-class _ProfileScreenState extends State<ProfileScreen> {
+class _SettingsScreenState extends State<SettingsScreen> {
   User? _user;
   bool _isLoading = true;
   String? _errorMessage;
@@ -229,11 +230,26 @@ class _ProfileScreenState extends State<ProfileScreen> {
               subtitle: _user!.email!,
             ),
           if (addressStr.isNotEmpty)
-             _buildProfileOption(
+            _buildProfileOption(
               icon: Icons.location_on_outlined,
               title: "Address",
               subtitle: addressStr,
             ),
+          _buildProfileOption(
+            icon: Icons.edit,
+            title: "Edit Profile",
+            onTap: () async {
+              final result = await Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => EditProfileScreen(user: _user!),
+                ),
+              );
+              if (result == true) {
+                _fetchUser();
+              }
+            },
+          ),
         ],
       ),
     );
