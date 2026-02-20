@@ -97,7 +97,7 @@ class _PermissionScreenState extends State<PermissionScreen> with WidgetsBinding
 
     if (!mounted) return;
 
-    if (biometricEnabled != null) {
+    if (biometricEnabled != null && biometricEnabled == 'true') {
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (context) => const HomeScreen()),
@@ -174,7 +174,7 @@ class _PermissionScreenState extends State<PermissionScreen> with WidgetsBinding
                 // Exact Alarm Permission Item
                 _buildPermissionItem(
                   icon: Icons.alarm,
-                  title: 'Exact Alarms',
+                  title: 'Alarms',
                   description: 'To schedule precise reminders and safety checks.',
                   isGranted: _exactAlarmGranted,
                 ),

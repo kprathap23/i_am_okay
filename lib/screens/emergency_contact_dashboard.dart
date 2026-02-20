@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'package:i_am_okay/models/user_model.dart';
-import 'package:i_am_okay/screens/history_screen.dart';
-import 'package:i_am_okay/screens/landing_screen.dart';
+import 'package:IamOkay/models/user_model.dart';
+import 'package:IamOkay/screens/history_screen.dart';
+import 'package:IamOkay/screens/landing_screen.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../services/notification_service.dart';
 import '../services/graphql_service.dart';
 
@@ -56,6 +57,25 @@ class _EmergencyContactDashboardState extends State<EmergencyContactDashboard> {
         MaterialPageRoute(builder: (context) => const LandingScreen()),
         (route) => false,
       );
+    }
+  }
+
+  Future<void> _makePhoneCall(String phoneNumber) async {
+    final Uri launchUri = Uri(
+      scheme: 'tel',
+      path: phoneNumber,
+    );
+    if (await canLaunchUrl(launchUri)) {
+      await launchUrl(launchUri);
+    } else {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Could not launch phone dialer.'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 
@@ -121,6 +141,7 @@ class _EmergencyContactDashboardState extends State<EmergencyContactDashboard> {
     final name = user.name;
     final address = user.address;
     final theme = Theme.of(context);
+    final reminderSettings = user.reminderSettings;
 
     return Card(
       elevation: 2,
@@ -155,7 +176,8 @@ class _EmergencyContactDashboardState extends State<EmergencyContactDashboard> {
                     radius: 24,
                     backgroundColor: theme.primaryColor.withAlpha(26),
                     child: Text(
-                      '${name?.firstName?[0] ?? ''}${name?.lastName?[0] ?? ''}'.toUpperCase(),
+                      '${name?.firstName?[0] ?? ''}${name?.lastName?[0] ?? ''}'
+                          .toUpperCase(),
                       style: TextStyle(
                         color: theme.primaryColor,
                         fontWeight: FontWeight.bold,
@@ -198,23 +220,68 @@ class _EmergencyContactDashboardState extends State<EmergencyContactDashboard> {
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text('Mobile Number', style: TextStyle(color: Colors.grey, fontSize: 12)),
+                      const Text('Mobile Number',
+                          style: TextStyle(color: Colors.grey, fontSize: 12)),
                       const SizedBox(height: 4),
-                      Text(user.mobileNumber, style: const TextStyle(fontWeight: FontWeight.w500)),
+                      Text(user.mobileNumber,
+                          style: const TextStyle(fontWeight: FontWeight.w500)),
                     ],
                   ),
                   TextButton.icon(
-                    onPressed: () {
-                      // TODO: Implement call functionality
-                    },
+                    onPressed: () => _makePhoneCall(user.mobileNumber),
                     icon: Icon(Icons.call, color: theme.primaryColor),
-                    label: Text('Call', style: TextStyle(color: theme.primaryColor)),
+                    label:
+                        Text('Call', style: TextStyle(color: theme.primaryColor)),
                     style: TextButton.styleFrom(
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8)),
                     ),
                   ),
                 ],
               ),
+              if (reminderSettings != null) ...[
+                const SizedBox(height: 16),
+                const Divider(),
+                const SizedBox(height: 8),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text('Check-in Time',
+                            style:
+                                TextStyle(color: Colors.grey, fontSize: 12)),
+                        const SizedBox(height: 4),
+                        Text(
+                          reminderSettings.checkInTime ?? 'Not Set',
+                          style: const TextStyle(fontWeight: FontWeight.w500),
+                        ),
+                      ],
+                    ),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        const Text('Status',
+                            style:
+                                TextStyle(color: Colors.grey, fontSize: 12)),
+                        const SizedBox(height: 4),
+                        Text(
+                          reminderSettings.isPaused ?? false
+                              ? 'Paused'
+                              : 'Active',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w500,
+                            color: reminderSettings.isPaused ?? false
+                                ? Colors.orange
+                                : Colors.green,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ]
             ],
           ),
         ),

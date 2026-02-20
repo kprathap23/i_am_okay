@@ -8,7 +8,7 @@
     <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM"/>
     <uses-permission android:name="android.permission.USE_BIOMETRIC"/>
     <application
-        android:label="i_am_okay"
+        android:label="IamOkay"
         android:name="${applicationName}"
         android:icon="@mipmap/launcher_icon">
         <activity

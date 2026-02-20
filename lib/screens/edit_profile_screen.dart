@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:i_am_okay/models/user_model.dart';
-import 'package:i_am_okay/services/graphql_service.dart';
-import 'package:i_am_okay/widgets/custom_button.dart';
-import 'package:i_am_okay/widgets/loading_overlay.dart';
+import 'package:IamOkay/models/user_model.dart';
+import 'package:IamOkay/services/graphql_service.dart';
+import 'package:IamOkay/widgets/custom_button.dart';
+import 'package:IamOkay/widgets/loading_overlay.dart';
 
 class EditProfileScreen extends StatefulWidget {
   final User user;

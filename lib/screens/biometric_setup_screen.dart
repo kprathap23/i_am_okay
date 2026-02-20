@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'package:i_am_okay/screens/home_screen.dart';
-import 'package:i_am_okay/widgets/custom_button.dart';
+import 'package:IamOkay/screens/emergency_contact_dashboard.dart';
+import 'package:IamOkay/screens/home_screen.dart';
+import 'package:IamOkay/widgets/custom_button.dart';
 import 'package:local_auth/local_auth.dart';
 
 class BiometricSetupScreen extends StatefulWidget {
@@ -53,7 +54,7 @@ class _BiometricSetupScreenState extends State<BiometricSetupScreen> {
 
     if (authenticated) {
       await _storage.write(key: 'biometric_enabled', value: 'true');
-      _navigateToHome();
+      _navigateToDashboard();
     } else {
       // Optionally, show a message that authentication failed
       if (mounted) {
@@ -69,15 +70,28 @@ class _BiometricSetupScreenState extends State<BiometricSetupScreen> {
 
   Future<void> _skipBiometric() async {
     await _storage.write(key: 'biometric_enabled', value: 'false');
-    _navigateToHome();
+    _navigateToDashboard();
   }
 
-  void _navigateToHome() {
-    Navigator.pushAndRemoveUntil(
-      context,
-      MaterialPageRoute(builder: (context) => const HomeScreen()),
-      (route) => false,
-    );
+  void _navigateToDashboard() async {
+    final userRole = await _storage.read(key: 'user_role');
+    if (mounted) {
+      if (userRole == 'contact') {
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(
+            builder: (context) => const EmergencyContactDashboard(),
+          ),
+          (route) => false,
+        );
+      } else {
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (context) => const HomeScreen()),
+          (route) => false,
+        );
+      }
+    }
   }
 
   @override

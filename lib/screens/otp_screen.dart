@@ -1,3 +1,4 @@
+import 'package:IamOkay/screens/biometric_setup_screen.dart';
 import 'package:flutter/material.dart';
 import 'dart:async';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -137,12 +138,23 @@ class _OtpScreenState extends State<OtpScreen> {
         LoadingOverlay.hide(context);
 
         if (widget.role == 'contact') {
-          Navigator.pushAndRemoveUntil(
-            context,
-            MaterialPageRoute(
-                builder: (context) => const EmergencyContactDashboard()),
-            (route) => false,
-          );
+              final biometricEnabled = await _storage.read(key: 'biometric_enabled');
+
+          if (biometricEnabled != null && biometricEnabled == 'true') {
+              Navigator.pushAndRemoveUntil(
+              context,
+              MaterialPageRoute(
+                  builder: (context) => const EmergencyContactDashboard()),
+              (route) => false,
+            );
+          }else{
+              Navigator.pushAndRemoveUntil(
+              context,
+              MaterialPageRoute(
+                  builder: (context) => const BiometricSetupScreen()),
+              (route) => false,
+            );
+          }
           return;
         }
 

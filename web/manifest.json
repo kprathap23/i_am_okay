@@ -1,6 +1,6 @@
 {
-    "name": "i_am_okay",
-    "short_name": "i_am_okay",
+    "name": "IamOkay",
+    "short_name": "IamOkay",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",

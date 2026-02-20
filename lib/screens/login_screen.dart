@@ -10,6 +10,8 @@ import '../utils/phone_input_formatter.dart';
 import 'register_screen.dart';
 import 'otp_screen.dart';
 import 'permission_screen.dart';
+import 'home_screen.dart';
+import 'emergency_contact_dashboard.dart';
 
 class LoginScreen extends StatefulWidget {
   final bool fromRegistration;
@@ -83,11 +85,22 @@ class _LoginScreenState extends State<LoginScreen> {
 
     final authenticated = await BiometricService.authenticate();
     if (authenticated && mounted) {
-       Navigator.pushAndRemoveUntil(
-        context,
-        MaterialPageRoute(builder: (context) => const PermissionScreen()),
-        (route) => false,
-      );
+      final userRole = await _storage.read(key: 'user_role');
+      if (userRole == 'contact') {
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(
+            builder: (context) => const EmergencyContactDashboard(),
+          ),
+          (route) => false,
+        );
+      } else {
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (context) => const PermissionScreen()),
+          (route) => false,
+        );
+      }
     }
   }
 

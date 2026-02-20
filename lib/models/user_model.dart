@@ -28,6 +28,7 @@ class User {
   final String id;
   final String mobileNumber;
   final String? email;
+  final String? role;
   final DateTime? createdAt;
   final DateTime? updatedAt;
   final Name? name;
@@ -39,6 +40,7 @@ class User {
     required this.id,
     required this.mobileNumber,
     this.email,
+    this.role,
     this.createdAt,
     this.updatedAt,
     this.name,
@@ -52,6 +54,7 @@ class User {
       id: json['id'] as String,
       mobileNumber: json['mobileNumber'] as String,
       email: json['email'] as String?,
+      role: json['role'] as String?,
       createdAt: json['createdAt'] != null
           ? DateTime.tryParse(json['createdAt'] as String)
           : null,
@@ -80,6 +83,7 @@ class User {
       'id': id,
       'mobileNumber': mobileNumber,
       'email': email,
+      'role': role,
       'createdAt': createdAt?.toIso8601String(),
       'updatedAt': updatedAt?.toIso8601String(),
       'name': name?.toJson(),
